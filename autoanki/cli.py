@@ -13,15 +13,103 @@ from autoanki.cards import generate_deck
 from autoanki.ocr import ocr_segments
 
 
+def _process_one(url: str, args, work_dir: Path) -> None:
+    """Process a single video URL through the full pipeline."""
+    # Stage 1: Download
+    print("Downloading video and subtitles...")
+    dl = download(url, work_dir / "download", cookies=args.cookies)
+    print(f"  Video: {dl.video_path.name}")
+    print(f"  Subs:  {dl.subtitle_path.name}")
+    print(f"  Lang:  {dl.sub_lang}")
+    print(f"  Title: {dl.title}")
+
+    is_chinese_subs = dl.sub_lang.startswith("zh")
+
+    # Stage 2: Parse subtitles
+    print("Parsing subtitles...")
+    segments = parse_vtt(dl.subtitle_path, require_chinese=is_chinese_subs)
+    print(f"  Found {len(segments)} segments")
+
+    if not segments:
+        print("No valid subtitle segments found. Skipping.")
+        return
+
+    # Stage 3: Extract clips
+    print(f"Extracting {len(segments)} video clips...")
+    clip_paths = extract_clips(dl.video_path, segments, work_dir / "clips")
+    print(f"  Extracted {len(clip_paths)} clips")
+
+    # Stage 4: Get Chinese text + English translations
+    if is_chinese_subs:
+        if args.no_translate:
+            translations = ["" for _ in segments]
+            print("Skipping translation (--no-translate)")
+        else:
+            print(f"Translating {len(segments)} segments...")
+            translations = translate_segments(segments)
+            print(f"  Translated {len(translations)} segments")
+    else:
+        from autoanki.ocr_preprocessing import translate_en_to_zh
+
+        translations = [seg.text for seg in segments]
+
+        if args.no_ocr:
+            print(f"Translating {len(segments)} English segments to Chinese...")
+            chinese_texts = translate_en_to_zh(translations)
+        else:
+            print(f"OCR-ing {len(segments)} frames for burned-in Chinese text...")
+            chinese_texts = ocr_segments(dl.video_path, segments, work_dir)
+
+            ocr_count = sum(1 for t in chinese_texts if t)
+            empty_count = len(chinese_texts) - ocr_count
+            print(f"  OCR: {ocr_count} segments with text, {empty_count} empty")
+
+            if empty_count > len(segments) * 0.5:
+                print("  >50% empty — using Claude to fill gaps...")
+                empty_indices = [i for i, t in enumerate(chinese_texts) if not t]
+                empty_english = [translations[i] for i in empty_indices]
+                filled = translate_en_to_zh(empty_english)
+                for idx, chinese in zip(empty_indices, filled):
+                    chinese_texts[idx] = chinese
+                print(f"  Claude filled {len(filled)} segments")
+
+        # Claude post-correction
+        if not args.no_ocr_correct and not args.no_ocr:
+            from autoanki.ocr_correct import correct_ocr
+            print(f"Correcting OCR with Claude ({len(chinese_texts)} segments)...")
+            chinese_texts = correct_ocr(chinese_texts, translations)
+            print(f"  Corrected {len(chinese_texts)} segments")
+
+        for seg, chinese in zip(segments, chinese_texts):
+            seg.text = chinese
+
+        final_count = sum(1 for t in chinese_texts if t)
+        print(f"  Final: {final_count}/{len(segments)} segments with Chinese text")
+
+    # Stage 5: Output cards
+    if args.ankiconnect:
+        from autoanki.ankiconnect import push_to_anki
+        print("Pushing cards to Anki via AnkiConnect...")
+        count = push_to_anki(dl.title, segments, translations, clip_paths)
+        print(f"  Pushed {count} cards to deck AutoAnki::{dl.title}")
+        print(f"\nDone! Cards are in Anki.")
+    else:
+        output_path = Path(args.output) if args.output else Path(f"{dl.title}.apkg")
+        print("Generating Anki deck...")
+        result = generate_deck(dl.title, segments, translations, clip_paths, output_path)
+        print(f"  Deck saved to: {result}")
+        print(f"\nDone! Import {result} into Anki.")
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="autoanki",
         description="Generate Anki flashcards from Chinese video content.",
     )
-    parser.add_argument("url", help="YouTube or Bilibili video URL")
+    parser.add_argument("urls", nargs="+", help="YouTube or Bilibili video URL(s)")
     parser.add_argument(
         "-o", "--output",
-        help="Output .apkg file path (default: <video-title>.apkg)",
+        help="Output .apkg file path (default: <video-title>.apkg). Only for single URL.",
     )
     parser.add_argument(
         "--work-dir",
@@ -46,10 +134,19 @@ def main():
         action="store_true",
         help="Skip OCR, use Claude to translate English subs to Chinese instead",
     )
+    parser.add_argument(
+        "--no-ocr-correct",
+        action="store_true",
+        help="Skip Claude OCR post-correction step",
+    )
+    parser.add_argument(
+        "--ankiconnect",
+        action="store_true",
+        help="Push cards to Anki via AnkiConnect (localhost:8765) instead of .apkg",
+    )
 
     args = parser.parse_args()
 
-    # Set up working directory
     if args.work_dir:
         work_dir = Path(args.work_dir)
         work_dir.mkdir(parents=True, exist_ok=True)
@@ -60,83 +157,23 @@ def main():
         cleanup = not args.keep_work_dir
 
     try:
-        # Stage 1: Download
-        print("Downloading video and subtitles...")
-        dl = download(args.url, work_dir / "download")
-        print(f"  Video: {dl.video_path.name}")
-        print(f"  Subs:  {dl.subtitle_path.name}")
-        print(f"  Lang:  {dl.sub_lang}")
-        print(f"  Title: {dl.title}")
+        for i, url in enumerate(args.urls):
+            if len(args.urls) > 1:
+                print(f"\n{'='*60}")
+                print(f"  [{i + 1}/{len(args.urls)}] {url}")
+                print(f"{'='*60}\n")
 
-        is_chinese_subs = dl.sub_lang.startswith("zh")
+            video_work_dir = work_dir / f"video_{i}" if len(args.urls) > 1 else work_dir
+            video_work_dir.mkdir(parents=True, exist_ok=True)
 
-        # Stage 2: Parse subtitles
-        print("Parsing subtitles...")
-        segments = parse_vtt(dl.subtitle_path, require_chinese=is_chinese_subs)
-        print(f"  Found {len(segments)} segments")
-
-        if not segments:
-            print("No valid subtitle segments found. Exiting.")
-            return
-
-        # Stage 3: Extract clips
-        print(f"Extracting {len(segments)} video clips...")
-        clip_paths = extract_clips(dl.video_path, segments, work_dir / "clips")
-        print(f"  Extracted {len(clip_paths)} clips")
-
-        # Stage 4: Get Chinese text + English translations
-        if is_chinese_subs:
-            # Chinese subs available: translate to English
-            if args.no_translate:
-                translations = ["" for _ in segments]
-                print("Skipping translation (--no-translate)")
-            else:
-                print(f"Translating {len(segments)} segments...")
-                translations = translate_segments(segments)
-                print(f"  Translated {len(translations)} segments")
-        else:
-            # English subs only: get Chinese text via OCR or Claude translation
-            from autoanki.ocr_preprocessing import translate_en_to_zh
-
-            translations = [seg.text for seg in segments]  # English text becomes translations
-
-            if args.no_ocr:
-                # Skip OCR, translate English→Chinese directly
-                print(f"Translating {len(segments)} English segments to Chinese...")
-                chinese_texts = translate_en_to_zh(translations)
-            else:
-                # Try OCR first, fall back to Claude for empty results
-                print(f"OCR-ing {len(segments)} frames for burned-in Chinese text...")
-                chinese_texts = ocr_segments(dl.video_path, segments, work_dir)
-
-                ocr_count = sum(1 for t in chinese_texts if t)
-                empty_count = len(chinese_texts) - ocr_count
-                print(f"  OCR: {ocr_count} segments with text, {empty_count} empty")
-
-                if empty_count > len(segments) * 0.5:
-                    print(f"  >50% empty — using Claude to fill gaps...")
-                    empty_indices = [i for i, t in enumerate(chinese_texts) if not t]
-                    empty_english = [translations[i] for i in empty_indices]
-                    filled = translate_en_to_zh(empty_english)
-                    for idx, chinese in zip(empty_indices, filled):
-                        chinese_texts[idx] = chinese
-                    print(f"  Claude filled {len(filled)} segments")
-
-            # Replace segment text with Chinese
-            for seg, chinese in zip(segments, chinese_texts):
-                seg.text = chinese
-
-            final_count = sum(1 for t in chinese_texts if t)
-            print(f"  Final: {final_count}/{len(segments)} segments with Chinese text")
-
-        # Stage 5: Generate deck
-        output_path = Path(args.output) if args.output else Path(f"{dl.title}.apkg")
-        print("Generating Anki deck...")
-        result = generate_deck(dl.title, segments, translations, clip_paths, output_path)
-        print(f"  Deck saved to: {result}")
-
-        print(f"\nDone! Import {result} into Anki.")
-
+            try:
+                _process_one(url, args, video_work_dir)
+            except Exception as e:
+                print(f"\nError processing {url}: {e}")
+                if len(args.urls) > 1:
+                    print("Continuing with next URL...")
+                    continue
+                raise
     finally:
         if cleanup:
             shutil.rmtree(work_dir, ignore_errors=True)

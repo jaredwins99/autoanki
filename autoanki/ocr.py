@@ -1,5 +1,6 @@
 """OCR extraction of burned-in Chinese subtitles from video frames using PaddleOCR."""
 
+import concurrent.futures
 import json
 import subprocess
 from pathlib import Path
@@ -90,11 +91,12 @@ def ocr_segments(
     video_path: Path,
     segments: list[Segment],
     work_dir: Path,
+    max_workers: int = 4,
 ) -> list[str]:
     """Extract Chinese text from burned-in subtitles for each segment.
 
-    Caches results to ocr_cache.json in work_dir. Only processes frames
-    that aren't already cached, so re-runs are fast.
+    Caches results to ocr_cache.json. Parallelizes frame extraction
+    for uncached segments, then runs PaddleOCR sequentially.
     """
     frames_dir = work_dir / "frames"
     frames_dir.mkdir(parents=True, exist_ok=True)
@@ -104,34 +106,30 @@ def ocr_segments(
     if cache_path.exists():
         cache = json.loads(cache_path.read_text())
 
-    chinese_texts = []
-    cached_count = 0
+    uncached = [s for s in segments if f"frame_{s.index:04d}" not in cache]
+    cached_count = len(segments) - len(uncached)
 
-    for i, seg in enumerate(segments):
-        cache_key = f"frame_{seg.index:04d}"
+    if uncached:
+        print(f"  Extracting {len(uncached)} frames ({cached_count} cached)...")
 
-        if cache_key in cache:
-            chinese_texts.append(cache[cache_key])
-            cached_count += 1
-            continue
+        def extract_one(seg: Segment) -> None:
+            mid_time = (seg.start + seg.end) / 2
+            _extract_frame(video_path, mid_time, frames_dir / f"frame_{seg.index:04d}.jpg")
 
-        mid_time = (seg.start + seg.end) / 2
-        frame_path = frames_dir / f"frame_{seg.index:04d}.jpg"
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
+            list(pool.map(extract_one, uncached))
 
-        _extract_frame(video_path, mid_time, frame_path)
+        for i, seg in enumerate(uncached):
+            cache_key = f"frame_{seg.index:04d}"
+            image = cv2.imread(str(frames_dir / f"frame_{seg.index:04d}.jpg"))
+            sub_region = _crop_subtitle_region(image)
+            cache[cache_key] = _ocr_chinese(sub_region)
+            print(f"  OCR {i + 1}/{len(uncached)}: {cache[cache_key]}", end="\r")
 
-        image = cv2.imread(str(frame_path))
-        sub_region = _crop_subtitle_region(image)
-        chinese_text = _ocr_chinese(sub_region)
-
-        cache[cache_key] = chinese_text
-        chinese_texts.append(chinese_text)
-        print(f"  OCR {i + 1}/{len(segments)}: {chinese_text}", end="\r")
-
-    cache_path.write_text(json.dumps(cache, ensure_ascii=False, indent=2))
+        cache_path.write_text(json.dumps(cache, ensure_ascii=False, indent=2))
+        print()
 
     if cached_count:
-        print(f"\n  ({cached_count} cached, {len(segments) - cached_count} new)")
-    else:
-        print()
-    return chinese_texts
+        print(f"  ({cached_count} cached, {len(uncached)} new)")
+
+    return [cache.get(f"frame_{s.index:04d}", "") for s in segments]
