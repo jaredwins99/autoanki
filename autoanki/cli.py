@@ -41,6 +41,11 @@ def main():
         "--cookies",
         help="Path to cookies file (for login-required videos)",
     )
+    parser.add_argument(
+        "--no-ocr",
+        action="store_true",
+        help="Skip OCR, use Claude to translate English subs to Chinese instead",
+    )
 
     args = parser.parse_args()
 
@@ -90,14 +95,39 @@ def main():
                 translations = translate_segments(segments)
                 print(f"  Translated {len(translations)} segments")
         else:
-            # English subs only: OCR video for Chinese, use English text as translations
-            print(f"OCR-ing {len(segments)} frames for burned-in Chinese text...")
+            # English subs only: get Chinese text via OCR or Claude translation
+            from autoanki.ocr_preprocessing import translate_en_to_zh
+
             translations = [seg.text for seg in segments]  # English text becomes translations
-            chinese_texts = ocr_segments(dl.video_path, segments, work_dir)
-            # Replace segment text with OCR'd Chinese
+
+            if args.no_ocr:
+                # Skip OCR, translate English→Chinese directly
+                print(f"Translating {len(segments)} English segments to Chinese...")
+                chinese_texts = translate_en_to_zh(translations)
+            else:
+                # Try OCR first, fall back to Claude for empty results
+                print(f"OCR-ing {len(segments)} frames for burned-in Chinese text...")
+                chinese_texts = ocr_segments(dl.video_path, segments, work_dir)
+
+                ocr_count = sum(1 for t in chinese_texts if t)
+                empty_count = len(chinese_texts) - ocr_count
+                print(f"  OCR: {ocr_count} segments with text, {empty_count} empty")
+
+                if empty_count > len(segments) * 0.5:
+                    print(f"  >50% empty — using Claude to fill gaps...")
+                    empty_indices = [i for i, t in enumerate(chinese_texts) if not t]
+                    empty_english = [translations[i] for i in empty_indices]
+                    filled = translate_en_to_zh(empty_english)
+                    for idx, chinese in zip(empty_indices, filled):
+                        chinese_texts[idx] = chinese
+                    print(f"  Claude filled {len(filled)} segments")
+
+            # Replace segment text with Chinese
             for seg, chinese in zip(segments, chinese_texts):
                 seg.text = chinese
-            print(f"  OCR complete, {sum(1 for t in chinese_texts if t)} segments with text")
+
+            final_count = sum(1 for t in chinese_texts if t)
+            print(f"  Final: {final_count}/{len(segments)} segments with Chinese text")
 
         # Stage 5: Generate deck
         output_path = Path(args.output) if args.output else Path(f"{dl.title}.apkg")

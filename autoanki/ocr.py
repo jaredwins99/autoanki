@@ -1,12 +1,22 @@
-"""OCR extraction of burned-in Chinese subtitles from video frames."""
+"""OCR extraction of burned-in Chinese subtitles from video frames using PaddleOCR."""
 
+import json
 import subprocess
-import re
 from pathlib import Path
-from PIL import Image
-import pytesseract
+
+import cv2
+import numpy as np
+from paddleocr import PaddleOCR
 
 from autoanki.subtitles import Segment
+
+# Initialize PaddleOCR once at module level
+_ocr = PaddleOCR(
+    lang="ch",
+    use_doc_orientation_classify=False,
+    use_doc_unwarping=False,
+    use_textline_orientation=False,
+)
 
 
 def _extract_frame(video_path: Path, timestamp: float, output_path: Path) -> Path:
@@ -23,25 +33,61 @@ def _extract_frame(video_path: Path, timestamp: float, output_path: Path) -> Pat
     return output_path
 
 
-def _crop_subtitle_region(image: Image.Image) -> Image.Image:
-    """Crop the bottom portion of the frame where subtitles typically appear."""
-    width, height = image.size
-    # Subtitles are usually in the bottom 20-25% of the frame
-    top = int(height * 0.75)
-    return image.crop((0, top, width, height))
+def _crop_subtitle_region(image: np.ndarray) -> np.ndarray:
+    """Crop the bottom 20-25% of the frame where subtitles typically appear."""
+    h, w = image.shape[:2]
+    top = int(h * 0.75)
+    return image[top:h, 0:w]
 
 
-def _ocr_chinese(image: Image.Image) -> str:
-    """Run tesseract OCR on an image to extract Chinese text."""
-    # Use chi_sim (simplified) + chi_tra (traditional) for best coverage
-    text = pytesseract.image_to_string(image, lang="chi_sim+chi_tra")
-    # Clean up OCR output
-    text = text.strip()
-    text = re.sub(r'\s+', '', text)  # Chinese text doesn't use spaces
-    # Remove non-Chinese characters that are likely OCR noise
-    # Keep Chinese chars, common punctuation
-    text = re.sub(r'[^\u4e00-\u9fff\u3000-\u303f\uff00-\uffef\u2000-\u206f]', '', text)
-    return text
+def _is_subtitle(poly, w, h, score):
+    """Check if a detected text region looks like a subtitle line.
+
+    Uses vertical position as the primary filter: burned-in subtitles appear
+    in a narrow Y band (~30% down the bottom-25% crop), while background text
+    (signs, documents, character name labels) appears elsewhere.
+    """
+    xs = [p[0] for p in poly]
+    ys = [p[1] for p in poly]
+    cy = sum(p[1] for p in poly) / len(poly)
+    cx = (min(xs) + max(xs)) / 2
+
+    if score < 0.5:
+        return False
+    # Subtitle Y band: cy must be between 20%-45% of crop height
+    # Subtitles consistently appear at cy ≈ 0.32
+    if cy < h * 0.20 or cy > h * 0.45:
+        return False
+    # Center must be in middle 80% of frame width
+    if cx < w * 0.10 or cx > w * 0.90:
+        return False
+    return True
+
+
+def _ocr_chinese(image: np.ndarray) -> str:
+    """Run PaddleOCR on a color image, returning only subtitle text.
+
+    Filters out background text (signs, documents) using position,
+    width, and aspect ratio heuristics.
+    """
+    result = _ocr.predict(image)
+    if not result or not result[0]:
+        return ""
+
+    h, w = image.shape[:2]
+    texts = result[0].get("rec_texts", [])
+    scores = result[0].get("rec_scores", [])
+    polys = result[0].get("dt_polys", [])
+
+    filtered: list[tuple[float, str]] = []
+    for text, score, poly in zip(texts, scores, polys):
+        if _is_subtitle(poly, w, h, score):
+            cy = sum(p[1] for p in poly) / len(poly)
+            filtered.append((cy, text))
+
+    # Sort top-to-bottom, then join
+    filtered.sort(key=lambda t: t[0])
+    return "".join(text for _, text in filtered).strip()
 
 
 def ocr_segments(
@@ -51,28 +97,47 @@ def ocr_segments(
 ) -> list[str]:
     """Extract Chinese text from burned-in subtitles for each segment.
 
-    Uses the segment timestamps to grab frames, then OCRs the subtitle region.
-    Returns a list of Chinese text strings, one per segment.
+    Caches results to ocr_cache.json in work_dir. Only processes frames
+    that aren't already cached, so re-runs are fast.
     """
     frames_dir = work_dir / "frames"
     frames_dir.mkdir(parents=True, exist_ok=True)
 
+    # Load cache
+    cache_path = work_dir / "ocr_cache.json"
+    cache: dict[str, str] = {}
+    if cache_path.exists():
+        cache = json.loads(cache_path.read_text())
+
     chinese_texts = []
+    cached_count = 0
 
     for i, seg in enumerate(segments):
-        # Grab frame from middle of segment for best subtitle visibility
+        cache_key = f"frame_{seg.index:04d}"
+
+        if cache_key in cache:
+            chinese_texts.append(cache[cache_key])
+            cached_count += 1
+            continue
+
         mid_time = (seg.start + seg.end) / 2
         frame_path = frames_dir / f"frame_{seg.index:04d}.jpg"
 
         _extract_frame(video_path, mid_time, frame_path)
 
-        # Load, crop subtitle region, OCR
-        image = Image.open(frame_path)
+        image = cv2.imread(str(frame_path))
         sub_region = _crop_subtitle_region(image)
         chinese_text = _ocr_chinese(sub_region)
 
+        cache[cache_key] = chinese_text
         chinese_texts.append(chinese_text)
-        print(f"  OCR {i + 1}/{len(segments)}: {chinese_text[:30]}", end="\r")
+        print(f"  OCR {i + 1}/{len(segments)}: {chinese_text}", end="\r")
 
-    print()
+    # Save cache
+    cache_path.write_text(json.dumps(cache, ensure_ascii=False, indent=2))
+
+    if cached_count:
+        print(f"\n  ({cached_count} cached, {len(segments) - cached_count} new)")
+    else:
+        print()
     return chinese_texts
