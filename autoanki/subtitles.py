@@ -44,7 +44,6 @@ def parse_vtt(vtt_path: Path, require_chinese: bool = True) -> list[Segment]:
     """Parse VTT file into deduplicated segments."""
     captions = list(webvtt.read(str(vtt_path)))
 
-    # Phase 1: Clean and collect raw captions
     raw = []
     for cap in captions:
         text = _clean_text(cap.text)
@@ -54,22 +53,18 @@ def parse_vtt(vtt_path: Path, require_chinese: bool = True) -> list[Segment]:
         end = _timestamp_to_seconds(cap.end)
         raw.append((start, end, text))
 
-    # Phase 2: Deduplicate YouTube rolling captions
-    # YouTube auto-subs show rolling 2-line captions where the first line
-    # of the current caption repeats the last line of the previous one.
+    # Deduplicate YouTube rolling captions (first line repeats previous last line)
     deduped = []
     for i, (start, end, text) in enumerate(raw):
         lines = text.split("\n")
         if i > 0:
             prev_lines = raw[i - 1][2].split("\n")
-            # If first line of current matches last line of previous, drop it
             if lines and prev_lines and lines[0].strip() == prev_lines[-1].strip():
                 lines = lines[1:]
         merged = " ".join(l.strip() for l in lines if l.strip())
         if merged:
             deduped.append((start, end, merged))
 
-    # Phase 3: Merge consecutive segments with identical text
     merged = []
     for start, end, text in deduped:
         if merged and merged[-1][2] == text:
@@ -77,7 +72,6 @@ def parse_vtt(vtt_path: Path, require_chinese: bool = True) -> list[Segment]:
         else:
             merged.append((start, end, text))
 
-    # Phase 4: Filter
     segments = []
     idx = 0
     for start, end, text in merged:

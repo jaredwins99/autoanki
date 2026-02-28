@@ -10,7 +10,6 @@ from paddleocr import PaddleOCR
 
 from autoanki.subtitles import Segment
 
-# Initialize PaddleOCR once at module level
 _ocr = PaddleOCR(
     lang="ch",
     use_doc_orientation_classify=False,
@@ -47,10 +46,8 @@ def _is_subtitle(poly, w, h, score):
     in a narrow Y band (~30% down the bottom-25% crop), while background text
     (signs, documents, character name labels) appears elsewhere.
     """
-    xs = [p[0] for p in poly]
-    ys = [p[1] for p in poly]
     cy = sum(p[1] for p in poly) / len(poly)
-    cx = (min(xs) + max(xs)) / 2
+    cx = (min(p[0] for p in poly) + max(p[0] for p in poly)) / 2
 
     if score < 0.5:
         return False
@@ -67,8 +64,8 @@ def _is_subtitle(poly, w, h, score):
 def _ocr_chinese(image: np.ndarray) -> str:
     """Run PaddleOCR on a color image, returning only subtitle text.
 
-    Filters out background text (signs, documents) using position,
-    width, and aspect ratio heuristics.
+    Filters out background text (signs, documents) using Y-band
+    positioning and horizontal centering.
     """
     result = _ocr.predict(image)
     if not result or not result[0]:
@@ -85,7 +82,6 @@ def _ocr_chinese(image: np.ndarray) -> str:
             cy = sum(p[1] for p in poly) / len(poly)
             filtered.append((cy, text))
 
-    # Sort top-to-bottom, then join
     filtered.sort(key=lambda t: t[0])
     return "".join(text for _, text in filtered).strip()
 
@@ -103,7 +99,6 @@ def ocr_segments(
     frames_dir = work_dir / "frames"
     frames_dir.mkdir(parents=True, exist_ok=True)
 
-    # Load cache
     cache_path = work_dir / "ocr_cache.json"
     cache: dict[str, str] = {}
     if cache_path.exists():
@@ -133,7 +128,6 @@ def ocr_segments(
         chinese_texts.append(chinese_text)
         print(f"  OCR {i + 1}/{len(segments)}: {chinese_text}", end="\r")
 
-    # Save cache
     cache_path.write_text(json.dumps(cache, ensure_ascii=False, indent=2))
 
     if cached_count:

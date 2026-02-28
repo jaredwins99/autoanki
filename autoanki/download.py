@@ -18,8 +18,6 @@ def download(url: str, output_dir: Path) -> DownloadResult:
     """Download video + Chinese subtitles from URL via yt-dlp."""
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Single yt-dlp call: download video + write both manual and auto subs
-    # for all Chinese language variants. yt-dlp will grab whichever are available.
     sub_langs = "zh-Hans,zh,zh-CN,zh-Hant,zh-TW,zh-Hans-en,zh-Hant-en,en"
     output_template = str(output_dir / "%(id)s.%(ext)s")
 
@@ -38,13 +36,11 @@ def download(url: str, output_dir: Path) -> DownloadResult:
         "--print-json",
         "--ignore-errors",
         "--sleep-requests", "1",
+        url,
     ]
 
-    cmd.append(url)
     result = subprocess.run(cmd, capture_output=True, text=True)
 
-    # Parse the JSON output for metadata
-    # --print-json outputs JSON to stdout even on partial failures
     if result.stdout.strip():
         meta = json.loads(result.stdout.strip().splitlines()[-1])
     else:
@@ -55,7 +51,6 @@ def download(url: str, output_dir: Path) -> DownloadResult:
     title = meta.get("title", "untitled")
     video_id = meta["id"]
 
-    # Find downloaded files
     video_path = output_dir / f"{video_id}.mp4"
     if not video_path.exists():
         candidates = list(output_dir.glob(f"{video_id}*.mp4"))
@@ -66,13 +61,12 @@ def download(url: str, output_dir: Path) -> DownloadResult:
                 f"Video not found. yt-dlp stderr:\n{result.stderr}"
             )
 
-    # Find best VTT file: prefer Chinese, fall back to English
     subtitle_path = None
     sub_lang = None
     preferred_order = [
         "zh-Hans", "zh", "zh-CN", "zh-Hant", "zh-TW",
         "zh-Hans-en", "zh-Hant-en",
-        "en",  # last resort — timestamps from English subs, OCR for Chinese
+        "en",
     ]
     for lang in preferred_order:
         candidate = output_dir / f"{video_id}.{lang}.vtt"
@@ -82,11 +76,9 @@ def download(url: str, output_dir: Path) -> DownloadResult:
             break
 
     if not subtitle_path:
-        # Try any VTT file
         candidates = list(output_dir.glob(f"{video_id}*.vtt"))
         if candidates:
             subtitle_path = candidates[0]
-            # Extract lang from filename: {id}.{lang}.vtt
             sub_lang = subtitle_path.stem.split(".", 1)[-1] if "." in subtitle_path.stem else "unknown"
         else:
             raise FileNotFoundError(

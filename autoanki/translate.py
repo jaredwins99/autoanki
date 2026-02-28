@@ -42,7 +42,6 @@ def translate_segments(segments: list[Segment]) -> list[str]:
                 "Claude CLI not found. Install it or use --no-translate."
             )
 
-        # Parse response
         response = json.loads(result.stdout)
         content = response.get("result", result.stdout)
 
