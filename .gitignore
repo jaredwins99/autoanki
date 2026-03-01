@@ -1,4 +1,4 @@
-
 __pycache__/
 *.pyc
+*.apkg
 autoanki.egg-info/

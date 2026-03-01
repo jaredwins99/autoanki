@@ -12,7 +12,10 @@ from autoanki.subtitles import Segment
 ANKICONNECT_URL = "http://localhost:8765"
 
 MODEL_NAME = "AutoAnki Chinese"
-FIELDS = ["Chinese", "English", "Video", "SegmentedChinese", "Index"]
+FIELDS = [
+    "Chinese", "English", "Video", "SegmentedChinese", "Index",
+    "am-unknowns", "am-unknowns-count", "am-highlighted", "am-score",
+]
 
 CSS = (
     ".card {\n"

@@ -40,6 +40,20 @@ def _has_chinese(text: str) -> bool:
     return bool(re.search(r"[\u4e00-\u9fff]", text))
 
 
+# Junk patterns: intro/credits/watermarks that aren't real dialogue
+_JUNK_PATTERNS = [
+    re.compile(r"(?i)subtitles?\s+(brought|by|translated)", re.IGNORECASE),
+    re.compile(r"(?i)(meet yourself|eng\s*sub|starring)", re.IGNORECASE),
+    re.compile(r"(?i)\[.*\]"),  # [Episode 01], [Meet Yourself], etc.
+    re.compile(r"(?i)@\w+"),  # @HuaceTV etc.
+]
+
+
+def _is_junk(text: str) -> bool:
+    """Detect intro/credits/watermark text that isn't real dialogue."""
+    return any(p.search(text) for p in _JUNK_PATTERNS)
+
+
 def parse_vtt(vtt_path: Path, require_chinese: bool = True) -> list[Segment]:
     """Parse VTT file into deduplicated segments."""
     captions = list(webvtt.read(str(vtt_path)))
@@ -78,6 +92,8 @@ def parse_vtt(vtt_path: Path, require_chinese: bool = True) -> list[Segment]:
         if end - start < 0.3:
             continue
         if require_chinese and not _has_chinese(text):
+            continue
+        if _is_junk(text):
             continue
         segments.append(Segment(index=idx, start=start, end=end, text=text))
         idx += 1

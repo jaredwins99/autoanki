@@ -19,6 +19,11 @@ AUTOANKI_MODEL = genanki.Model(
         {"name": "Video"},
         {"name": "SegmentedChinese"},
         {"name": "Index"},
+        # AnkiMorphs extra fields (populated by AnkiMorphs during Recalc)
+        {"name": "am-unknowns"},
+        {"name": "am-unknowns-count"},
+        {"name": "am-highlighted"},
+        {"name": "am-score"},
     ],
     templates=[
         {
@@ -73,6 +78,9 @@ def generate_deck(
     media_files = []
 
     for seg, translation, clip_path in zip(segments, translations, clip_paths):
+        if not seg.text.strip():
+            continue
+
         clip_filename = clip_path.name
         media_files.append(str(clip_path))
 
@@ -84,6 +92,10 @@ def generate_deck(
                 f"[sound:{clip_filename}]",
                 _segment_chinese(seg.text),
                 str(seg.index),
+                "",  # am-unknowns (filled by AnkiMorphs)
+                "",  # am-unknowns-count
+                "",  # am-highlighted
+                "",  # am-score
             ],
             sort_field=str(seg.index),
             guid=_note_guid(title, seg.index),
