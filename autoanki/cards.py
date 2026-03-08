@@ -76,10 +76,14 @@ def generate_deck(
     """Generate .apkg deck with embedded video clips."""
     deck = genanki.Deck(_deck_id_from_title(title), f"AutoAnki::{title}")
     media_files = []
+    seen_texts: set[str] = set()
 
     for seg, translation, clip_path in zip(segments, translations, clip_paths):
         if not seg.text.strip():
             continue
+        if seg.text in seen_texts:
+            continue
+        seen_texts.add(seg.text)
 
         clip_filename = clip_path.name
         media_files.append(str(clip_path))

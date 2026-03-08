@@ -88,6 +88,7 @@ def parse_vtt(vtt_path: Path, require_chinese: bool = True) -> list[Segment]:
 
     segments = []
     idx = 0
+    seen_texts: set[str] = set()
     for start, end, text in merged:
         if end - start < 0.3:
             continue
@@ -95,6 +96,9 @@ def parse_vtt(vtt_path: Path, require_chinese: bool = True) -> list[Segment]:
             continue
         if _is_junk(text):
             continue
+        if text in seen_texts:
+            continue
+        seen_texts.add(text)
         segments.append(Segment(index=idx, start=start, end=end, text=text))
         idx += 1
 
