@@ -14,3 +14,35 @@ def load_known_words(max_level: int = 5) -> set[str]:
     Returns the combined old HSK 1-{max_level} + new HSK equivalent words.
     """
     return set(_ALL_WORDS)
+
+
+def load_known_morphs(min_freq: int = 300) -> set[str]:
+    """Expanded morph set: HSK words + single chars + jieba compounds.
+
+    Includes any jieba dictionary entry (len 2-4, freq >= min_freq) where
+    every constituent character appears in an HSK word. This catches common
+    compounds like 一个, 这个, 不是 that jieba keeps as single tokens.
+    """
+    import re
+    import jieba
+    jieba.initialize()
+
+    # Extract all unique Chinese characters from HSK words
+    known_chars = set()
+    for word in _ALL_WORDS:
+        for ch in word:
+            if '\u4e00' <= ch <= '\u9fff':
+                known_chars.add(ch)
+
+    chinese_only = re.compile(r'^[\u4e00-\u9fff]+$')
+
+    # Start with HSK words + individual known characters
+    morphs = set(_ALL_WORDS) | known_chars
+
+    # Add jieba entries where all chars are known
+    for word, freq in jieba.dt.FREQ.items():
+        if (chinese_only.match(word) and 2 <= len(word) <= 4
+                and freq >= min_freq and all(ch in known_chars for ch in word)):
+            morphs.add(word)
+
+    return morphs
