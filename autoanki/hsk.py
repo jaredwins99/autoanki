@@ -72,7 +72,7 @@ def load_known_morphs() -> set[str]:
             continue
         if len(word) == 2 and all(ch in _BASIC_CHARS for ch in word):
             morphs.add(word)  # basic chars — no freq filter
-        elif 2 <= len(word) <= 4 and freq >= 1000:
+        elif 2 <= len(word) <= 4 and freq >= 4000:
             morphs.add(word)
 
     return morphs
