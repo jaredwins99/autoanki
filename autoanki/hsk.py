@@ -16,12 +16,13 @@ def load_known_words(max_level: int = 5) -> set[str]:
     return set(_ALL_WORDS)
 
 
-def load_known_morphs(min_freq: int = 300) -> set[str]:
+def load_known_morphs() -> set[str]:
     """Expanded morph set: HSK words + single chars + jieba compounds.
 
-    Includes any jieba dictionary entry (len 2-4, freq >= min_freq) where
-    every constituent character appears in an HSK word. This catches common
-    compounds like 一个, 这个, 不是 that jieba keeps as single tokens.
+    Includes jieba dictionary entries where every constituent character
+    appears in an HSK word. Thresholds: freq >= 3 for 2-char (catches
+    买车, 吃饭 etc.), freq >= 300 for 3-4 char. Extra entries are inert
+    since AnkiMorphs only checks words that actually appear in cards.
     """
     import re
     import jieba
@@ -41,8 +42,13 @@ def load_known_morphs(min_freq: int = 300) -> set[str]:
 
     # Add jieba entries where all chars are known
     for word, freq in jieba.dt.FREQ.items():
-        if (chinese_only.match(word) and 2 <= len(word) <= 4
-                and freq >= min_freq and all(ch in known_chars for ch in word)):
+        if not chinese_only.match(word) or word in morphs:
+            continue
+        if not all(ch in known_chars for ch in word):
+            continue
+        if len(word) == 2 and freq >= 3:
+            morphs.add(word)
+        elif 3 <= len(word) <= 4 and freq >= 300:
             morphs.add(word)
 
     return morphs
