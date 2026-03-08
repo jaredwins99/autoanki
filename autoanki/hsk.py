@@ -16,13 +16,38 @@ def load_known_words(max_level: int = 5) -> set[str]:
     return set(_ALL_WORDS)
 
 
+# 617 chars from HSK 1-2 (old+new) — safe to assume any 2-char combo is known
+_BASIC_CHARS = frozenset(
+    "一七万丈三上下不且业东两个中为主举久么乐九也习书买了事二于云"
+    "五些交京亮人亿什今介从他以们件份休会但位低住体作你使例便信倒"
+    "候借假做停健像儿元先克入全八公六共关兴其典养再写冬冷净准凉几"
+    "出分划刚利别到刻前力办加务动助努包北医十千午半单卖南占卡印原"
+    "去参又友发取受变口句只叫可右号司吃合同名后向吗吧听吹告员呢周"
+    "味和咖咱响哥哪哭唱商啊啡喂喊喜喝嘴四回因园国图在地场坏坐块堂"
+    "墙声处备复夏外多夜够大天太夫头套女奶她好如妈妹妻始姐姓子字学"
+    "孩它安完定宜实客室家对封小少就层山岁工左差己已市师希带帮常干"
+    "平年广床应店度座庭康开弄弟张当影往很得心必忘忙快忽态怎怕思急"
+    "息您情惯想意感愿慢懂成我或房所手才打找护报拉拿挺换掉排接推提"
+    "收改放故教数文斤新方旁旅日早时明星春昨是晚晨普晴更最月有朋服"
+    "望期末本机条来杯板果查树校样桌检椅楚楼次欢歌正步段每比毛气水"
+    "永求汉汽没河油法泳洗活流海清温渴游湖满漂澡火灯点热然照熟爬爱"
+    "爷爸片牛物特狗猫玩现班球理瓜瓶生用由电男画留疼病白百的目直相"
+    "省看真眼着睛睡知短确碗碰礼票离秋科租称空穿站笑笔第等答筷算篇"
+    "篮米系累红级纸练组绍经结给绩绿网羊老考者而肉育背能脏脑脚脸腿"
+    "自舒舞般船色节花英苹茶草药菜蓝虽蛋行街衣表装西要见观视觉角言"
+    "计认讨让记讲许论识诉词试话该语说请读课谁谢贵走起超越跑跟路跳"
+    "踢身车轻辆边过迎运近还这进远送适选通遍道那部都酒里重量钟钱铁"
+    "银错长门问间闻队阳阴际院随难雨雪零青静非靠面鞋音页顺须顾题颜"
+    "风飞食餐饭饱饺饿馆马骑高鱼鸟鸡黄黑"
+)
+
+
 def load_known_morphs() -> set[str]:
     """Expanded morph set: HSK words + single chars + jieba compounds.
 
-    Includes jieba dictionary entries where every constituent character
-    appears in an HSK word. Thresholds: freq >= 3 for 2-char (catches
-    买车, 吃饭 etc.), freq >= 300 for 3-4 char. Extra entries are inert
-    since AnkiMorphs only checks words that actually appear in cards.
+    For 2-char words: includes any jieba entry where both chars are from
+    HSK 1-2 (basic level, no freq filter needed — 买车, 吃饭 etc.).
+    For 2-4 char words with higher-level chars: requires freq >= 300.
     """
     import re
     import jieba
@@ -40,15 +65,14 @@ def load_known_morphs() -> set[str]:
     # Start with HSK words + individual known characters
     morphs = set(_ALL_WORDS) | known_chars
 
-    # Add jieba entries where all chars are known
     for word, freq in jieba.dt.FREQ.items():
         if not chinese_only.match(word) or word in morphs:
             continue
         if not all(ch in known_chars for ch in word):
             continue
-        if len(word) == 2 and freq >= 3:
-            morphs.add(word)
-        elif 3 <= len(word) <= 4 and freq >= 300:
+        if len(word) == 2 and all(ch in _BASIC_CHARS for ch in word):
+            morphs.add(word)  # basic chars — no freq filter
+        elif 2 <= len(word) <= 4 and freq >= 300:
             morphs.add(word)
 
     return morphs
