@@ -3,3 +3,4 @@ __pycache__/
 *.apkg
 autoanki.egg-info/
 data/apkg_extract/
+scripts/linear.sh
