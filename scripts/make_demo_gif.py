@@ -33,6 +33,8 @@ EN_COLOR = (176, 176, 176, 255)
 @dataclass
 class Card:
     file_id: str
+    start: float  # seconds into clip where subtitle appears
+    dur: float    # seconds the subtitle stays on screen
     pre: str
     target: str
     post: str
@@ -40,10 +42,10 @@ class Card:
 
 
 CARDS = [
-    Card("0",  "",     "这边",  "请",     "This way, please"),
-    Card("19", "您没",  "受伤",  "吧",     "Are you hurt?"),
-    Card("31", "我送您两张", "餐券", "",   "Two meal vouchers for you"),
-    Card("26", "这周末行政", "套房", "订满了", "Suites are fully booked this weekend"),
+    Card("4",   0.30, 1.70, "你能告诉我您的", "房号", "吗", "Can you tell me your room number?"),
+    Card("120", 0.50, 1.00, "",             "考察", "了两家酒店", "Inspected two hotels"),
+    Card("130", 0.55, 1.50, "给你又寄了不少", "燕窝", "呀", "Sent you more bird's nest"),
+    Card("150", 0.50, 1.30, "你说咱那么努力", "赚钱", "",   "We work so hard to earn money"),
 ]
 
 
@@ -86,7 +88,7 @@ def build() -> None:
 
     inputs: list[str] = []
     for c in CARDS:
-        inputs += ["-i", str(WORK / c.file_id)]
+        inputs += ["-ss", str(c.start), "-t", str(c.dur), "-i", str(WORK / c.file_id)]
     for p in panels:
         inputs += ["-i", str(p)]
 
@@ -113,10 +115,11 @@ def build() -> None:
          "-map", "[p]", str(palette), "-loglevel", "error"],
         check=True,
     )
+    palette_idx = len(CARDS) * 2  # 4 video inputs + 4 panel inputs => palette is index 8
     subprocess.run(
         ["ffmpeg", "-y", *inputs, "-i", str(palette),
          "-filter_complex",
-         f"{full};[v][{len(inputs) // 2}:v]paletteuse=dither=bayer:bayer_scale=5",
+         f"{full};[v][{palette_idx}:v]paletteuse=dither=bayer:bayer_scale=5",
          "-loop", "0", str(OUT), "-loglevel", "error"],
         check=True,
     )
