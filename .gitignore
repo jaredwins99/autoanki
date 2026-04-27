@@ -2,3 +2,4 @@ __pycache__/
 *.pyc
 *.apkg
 autoanki.egg-info/
+data/apkg_extract/
