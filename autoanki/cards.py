@@ -6,6 +6,7 @@ from pathlib import Path
 import genanki
 import jieba
 
+from autoanki.morph import highlight_first_unknown, load_known_morphs
 from autoanki.subtitles import Segment
 
 AUTOANKI_MODEL_ID = 1607392319
@@ -30,13 +31,16 @@ AUTOANKI_MODEL = genanki.Model(
             "name": "Listening",
             "qfmt": "{{Video}}<br><br>What did they say?",
             "afmt": '{{FrontSide}}<hr id="answer">'
-            "<p>{{Chinese}}</p>"
+            "<p>{{#am-highlighted}}{{am-highlighted}}{{/am-highlighted}}"
+            "{{^am-highlighted}}{{Chinese}}{{/am-highlighted}}</p>"
             '<p style="color: #666; font-size: 0.9em;">{{SegmentedChinese}}</p>'
             '<p style="color: #888;">{{English}}</p>',
         },
         {
             "name": "Reading",
-            "qfmt": '<p style="font-size: 1.5em;">{{Chinese}}</p>',
+            "qfmt": '<p style="font-size: 1.5em;">'
+            "{{#am-highlighted}}{{am-highlighted}}{{/am-highlighted}}"
+            "{{^am-highlighted}}{{Chinese}}{{/am-highlighted}}</p>",
             "afmt": '{{FrontSide}}<hr id="answer">'
             "{{Video}}"
             '<p style="color: #666; font-size: 0.9em;">{{SegmentedChinese}}</p>'
@@ -49,6 +53,13 @@ AUTOANKI_MODEL = genanki.Model(
     "  text-align: center;\n"
     "  color: #333;\n"
     "  background-color: #fff;\n"
+    "}\n"
+    '[morph-status="unknown"], .am-unknown {\n'
+    "  color: #fbc02d;\n"
+    "  font-weight: 600;\n"
+    "}\n"
+    '[morph-status="unset"] {\n'
+    "  color: #888;\n"
     "}",
 )
 
@@ -77,6 +88,7 @@ def generate_deck(
     deck = genanki.Deck(_deck_id_from_title(title), f"AutoAnki::{title}")
     media_files = []
     seen_texts: set[str] = set()
+    known = load_known_morphs()
 
     for seg, translation, clip_path in zip(segments, translations, clip_paths):
         if not seg.text.strip():
@@ -96,9 +108,9 @@ def generate_deck(
                 f"[sound:{clip_filename}]",
                 _segment_chinese(seg.text),
                 str(seg.index),
-                "",  # am-unknowns (filled by AnkiMorphs)
+                "",  # am-unknowns (AnkiMorphs Recalc overwrites)
                 "",  # am-unknowns-count
-                "",  # am-highlighted
+                highlight_first_unknown(seg.text, known),
                 "",  # am-score
             ],
             sort_field=str(seg.index),

@@ -7,6 +7,7 @@ from pathlib import Path
 
 import jieba
 
+from autoanki.morph import highlight_first_unknown, load_known_morphs
 from autoanki.subtitles import Segment
 
 ANKICONNECT_URL = "http://localhost:8765"
@@ -24,7 +25,19 @@ CSS = (
     "  text-align: center;\n"
     "  color: #333;\n"
     "  background-color: #fff;\n"
+    "}\n"
+    '[morph-status="unknown"], .am-unknown {\n'
+    "  color: #fbc02d;\n"
+    "  font-weight: 600;\n"
+    "}\n"
+    '[morph-status="unset"] {\n'
+    "  color: #888;\n"
     "}"
+)
+
+_ZH_CELL = (
+    "{{#am-highlighted}}{{am-highlighted}}{{/am-highlighted}}"
+    "{{^am-highlighted}}{{Chinese}}{{/am-highlighted}}"
 )
 
 TEMPLATES = [
@@ -33,14 +46,14 @@ TEMPLATES = [
         "Front": "{{Video}}<br><br>What did they say?",
         "Back": (
             '{{FrontSide}}<hr id="answer">'
-            "<p>{{Chinese}}</p>"
+            f"<p>{_ZH_CELL}</p>"
             '<p style="color: #666; font-size: 0.9em;">{{SegmentedChinese}}</p>'
             '<p style="color: #888;">{{English}}</p>'
         ),
     },
     {
         "Name": "Reading",
-        "Front": '<p style="font-size: 1.5em;">{{Chinese}}</p>',
+        "Front": f'<p style="font-size: 1.5em;">{_ZH_CELL}</p>',
         "Back": (
             '{{FrontSide}}<hr id="answer">'
             "{{Video}}"
@@ -115,6 +128,7 @@ def push_to_anki(
     _invoke("createDeck", deck=deck_name)
     _ensure_model()
 
+    known = load_known_morphs()
     count = 0
     total = len(segments)
 
@@ -132,6 +146,7 @@ def push_to_anki(
             "Video": f"[sound:{clip_filename}]",
             "SegmentedChinese": _segment_chinese(seg.text),
             "Index": str(seg.index),
+            "am-highlighted": highlight_first_unknown(seg.text, known),
         }
 
         # Try to find existing note (duplicate check by Chinese field in this deck)
