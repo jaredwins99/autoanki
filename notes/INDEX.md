@@ -12,6 +12,7 @@ declarations, so it cannot drift from the notes themselves.
 | decision | [One argparse entry point wires five staged transforms, with lazy imports for the heavy ones](decisions/cli-pipeline-shape.md) | autoanki/cli.py |
 | decision | [Cut one MP4 per segment with libx264/aac and a 0.4s pre/post padding default](decisions/clip-ffmpeg-cutter.md) | autoanki/clip.py |
 | decision | [One yt-dlp call downloads video + every candidate Chinese sub track, with cache-by-video-id reuse](decisions/download-yt-dlp.md) | autoanki/download.py |
+| decision | [Split noise detection into six named predicates across two insertion points, drop by default](decisions/filters-noise-classifier.md) | autoanki/filters.py |
 | decision | [Ship HSK 1-5 as an inline Python frozenset and expand offline with jieba into the shared CSV](decisions/hsk-inline-vocab-baseline.md) | autoanki/hsk.py |
 | decision | [Highlight only the first unknown morph per sentence, at generation time, against the shipped HSK CSV](decisions/morph-first-unknown-highlight.md) | autoanki/morph.py |
 | decision | [Post-correct PaddleOCR with Claude, giving it the English subtitle as ground-truth context](decisions/ocr-correct-claude-postpass.md) | autoanki/ocr_correct.py |

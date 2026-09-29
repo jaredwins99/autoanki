@@ -54,7 +54,7 @@ def _is_junk(text: str) -> bool:
     return any(p.search(text) for p in _JUNK_PATTERNS)
 
 
-def parse_vtt(vtt_path: Path, require_chinese: bool = True) -> list[Segment]:
+def parse_vtt(vtt_path: Path, require_chinese: bool = True, drop_noise: bool = True) -> list[Segment]:
     """Parse VTT file into deduplicated segments."""
     captions = list(webvtt.read(str(vtt_path)))
 
@@ -86,6 +86,10 @@ def parse_vtt(vtt_path: Path, require_chinese: bool = True) -> list[Segment]:
         else:
             merged.append((start, end, text))
 
+    # Pre-OCR / English-side noise predicates. Imported here to avoid a
+    # circular import if filters.py ever needs the Segment dataclass.
+    from autoanki.filters import is_noise_pre_ocr
+
     segments = []
     idx = 0
     seen_texts: set[str] = set()
@@ -96,6 +100,10 @@ def parse_vtt(vtt_path: Path, require_chinese: bool = True) -> list[Segment]:
             continue
         if _is_junk(text):
             continue
+        if drop_noise:
+            noise, _reason = is_noise_pre_ocr(text)
+            if noise:
+                continue
         if text in seen_texts:
             continue
         seen_texts.add(text)

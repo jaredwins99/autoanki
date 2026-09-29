@@ -27,7 +27,7 @@ def _process_one(url: str, args, work_dir: Path) -> None:
 
     # Stage 2: Parse subtitles
     print("Parsing subtitles...")
-    segments = parse_vtt(dl.subtitle_path, require_chinese=is_chinese_subs)
+    segments = parse_vtt(dl.subtitle_path, require_chinese=is_chinese_subs, drop_noise=not args.keep_noise)
     print(f"  Found {len(segments)} segments")
 
     if not segments:
@@ -88,6 +88,31 @@ def _process_one(url: str, args, work_dir: Path) -> None:
 
         final_count = sum(1 for t in chinese_texts if t)
         print(f"  Final: {final_count}/{len(segments)} segments with Chinese text")
+
+    # Stage 4a: CJK-side noise filter — watermarks, song/credit markers,
+    # stage directions, cross-segment repeated static overlays.
+    if not args.keep_noise:
+        from autoanki.filters import is_noise_post_ocr, repeated_texts
+        before = len(segments)
+        repeated = repeated_texts((s.text for s in segments), threshold=3)
+        noise_reasons: dict[str, int] = {}
+        keep = []
+        for s, t, c in zip(segments, translations, clip_paths):
+            noise, reason = is_noise_post_ocr(s.text, repeated)
+            if noise:
+                noise_reasons[reason] = noise_reasons.get(reason, 0) + 1
+                continue
+            keep.append((s, t, c))
+        segments = [s for s, _, _ in keep]
+        translations = [t for _, t, _ in keep]
+        clip_paths = [c for _, _, c in keep]
+        dropped = before - len(segments)
+        if dropped:
+            breakdown = ", ".join(f"{k}={v}" for k, v in sorted(noise_reasons.items()))
+            print(f"  noise filter: dropped {dropped}/{before} ({breakdown})")
+        if not segments:
+            print("Nothing survived the noise filter. Skipping.")
+            return
 
     # Stage 4b: i+1 filter — drop segments where every morph is already known.
     if args.i_plus_one:
@@ -174,6 +199,11 @@ def main():
         "--i-plus-one",
         action="store_true",
         help="Only keep sentences with exactly one unknown morph (drops all-known and multi-unknown)",
+    )
+    parser.add_argument(
+        "--keep-noise",
+        action="store_true",
+        help="Skip the song-lyric / credit / watermark / stage-direction / repeated-static filter",
     )
 
     args = parser.parse_args()
