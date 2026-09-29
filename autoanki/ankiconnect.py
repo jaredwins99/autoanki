@@ -16,7 +16,7 @@ import jieba
 from autoanki.morph import highlight_first_unknown, load_known_morphs
 from autoanki.subtitles import Segment
 
-ANKICONNECT_URL = os.environ.get("ANKICONNECT_URL", "http://localhost:8766")
+ANKICONNECT_URL = os.environ.get("ANKICONNECT_URL", "http://localhost:8555")
 
 MODEL_NAME = "AutoAnki Chinese"
 FIELDS = [

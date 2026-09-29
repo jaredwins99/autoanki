@@ -162,7 +162,7 @@ def main():
     parser.add_argument(
         "--ankiconnect",
         action="store_true",
-        help="Push cards to Anki via AnkiConnect (default http://localhost:8766, override with ANKICONNECT_URL) instead of .apkg",
+        help="Push cards to Anki via AnkiConnect (default http://localhost:8555, override with ANKICONNECT_URL) instead of .apkg",
     )
     parser.add_argument(
         "--clip-padding",
