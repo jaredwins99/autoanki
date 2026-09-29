@@ -8,6 +8,7 @@ dependencies = [
     "webvtt-py>=0.5",
     "genanki>=0.13",
     "jieba>=0.42",
+    "pyyaml>=6.0",
 ]
 
 [project.scripts]

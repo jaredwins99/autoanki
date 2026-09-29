@@ -14,10 +14,15 @@ declarations, so it cannot drift from the notes themselves.
 | decision | [One yt-dlp call downloads video + every candidate Chinese sub track, with cache-by-video-id reuse](decisions/download-yt-dlp.md) | autoanki/download.py |
 | decision | [Split noise detection into six named predicates across two insertion points, drop by default](decisions/filters-noise-classifier.md) | autoanki/filters.py |
 | decision | [Ship HSK 1-5 as an inline Python frozenset and expand offline with jieba into the shared CSV](decisions/hsk-inline-vocab-baseline.md) | autoanki/hsk.py |
+| decision | [Query mature Anki cards (ivl>=21) across all Chinese-content decks via AnkiConnect, tokenize with jieba](decisions/level-anki-import.md) | autoanki/level/anki_import.py |
+| decision | [Persist the user's known-morph set as YAML at ~/.config/autoanki/profile.yaml, four modes converge on the same shape](decisions/level-profile-persistence.md) | autoanki/level/profile.py |
+| decision | [TUI wizard dispatches on --mode; interactive prompts fall back to hsk baseline when unattended](decisions/level-setup-cli.md) | autoanki/level/setup_cli.py |
 | decision | [Highlight only the first unknown morph per sentence, at generation time, against the shipped HSK CSV](decisions/morph-first-unknown-highlight.md) | autoanki/morph.py |
 | decision | [Post-correct PaddleOCR with Claude, giving it the English subtitle as ground-truth context](decisions/ocr-correct-claude-postpass.md) | autoanki/ocr_correct.py |
 | decision | [PaddleOCR PP-OCRv5 with a bottom-25% crop + Y-band 20-45% + X-center 10-90% + confidence 0.5 filter](decisions/ocr-paddle-yband-filter.md) | autoanki/ocr.py |
 | decision | [When OCR isn't running, translate the English subtitle to spoken Chinese via Claude CLI](decisions/ocr-preprocessing-en-to-zh.md) | autoanki/ocr_preprocessing.py |
 | decision | [Parse VTT with webvtt-py; drop YouTube rolling repeats, merge consecutive identicals, gate on duration/language/junk/dedup](decisions/subtitles-vtt-parse-junk-dedup.md) | autoanki/subtitles.py |
 | decision | [Chinese → English translation runs through the Claude CLI as a batched subprocess, not an API SDK](decisions/translate-claude-subagent.md) | autoanki/translate.py |
+| open | [Should `autoanki setup --gui` spin up a localhost web wizard alongside the TUI?](open/level-web-gui.md) | autoanki/level/setup_cli.py |
+| open | [Where does the adaptive quiz get its sentences from?](open/quiz-corpus.md) | autoanki/level/setup_cli.py |
 | open | [How does autoanki learn a user's actual vocabulary level?](open/vocab-level-source.md) | autoanki/morph.py |

@@ -14,7 +14,18 @@ _HAN_RE = re.compile(r"[一-鿿]")
 
 
 def load_known_morphs(csv_path: Path = DEFAULT_KNOWN_CSV) -> set[str]:
-    """Load the known-morphs CSV (Morph-Lemma column) into a set."""
+    """Load the known-morph set.
+
+    Precedence: user profile at `~/.config/autoanki/profile.yaml` (or
+    wherever `AUTOANKI_PROFILE` env var points), else the shipped baseline
+    CSV. Callers get the same `set[str]` shape either way.
+    """
+    from autoanki.level.profile import Profile  # local to avoid a cycle
+
+    profile = Profile.load()
+    if profile is not None:
+        return profile.known_morphs
+
     with csv_path.open(encoding="utf-8") as f:
         reader = csv.DictReader(f)
         return {row["Morph-Lemma"] for row in reader if row.get("Morph-Lemma")}

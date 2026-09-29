@@ -147,6 +147,14 @@ def _process_one(url: str, args, work_dir: Path) -> None:
 
 
 def main():
+    # `autoanki setup` dispatches to the level-wizard subcommand; every other
+    # invocation is the classic pipeline. Kept as a lightweight sniff at the
+    # top of main() so `autoanki <url>` remains a single positional argparse.
+    import sys
+    if len(sys.argv) >= 2 and sys.argv[1] == "setup":
+        from autoanki.level.setup_cli import main as setup_main
+        sys.exit(setup_main(sys.argv[2:]))
+
     parser = argparse.ArgumentParser(
         prog="autoanki",
         description="Generate Anki flashcards from Chinese video content.",
