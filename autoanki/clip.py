@@ -10,7 +10,7 @@ def extract_clips(
     video_path: Path,
     segments: list[Segment],
     output_dir: Path,
-    padding: float = 0.15,
+    padding: float = 0.4,
 ) -> list[Path]:
     """Extract one mp4 clip per segment from the source video."""
     output_dir.mkdir(parents=True, exist_ok=True)

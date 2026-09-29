@@ -1,7 +1,13 @@
-"""Push Anki flashcards via AnkiConnect addon (localhost:8765)."""
+"""Push Anki flashcards via AnkiConnect addon.
+
+URL is configurable via ANKICONNECT_URL env var (default http://localhost:8765).
+Change the AnkiConnect port in Tools > Add-ons > AnkiConnect > Config
+(webBindPort) if 8765 clashes with another service on your machine.
+"""
 
 import base64
 import json
+import os
 import urllib.request
 from pathlib import Path
 
@@ -10,7 +16,7 @@ import jieba
 from autoanki.morph import highlight_first_unknown, load_known_morphs
 from autoanki.subtitles import Segment
 
-ANKICONNECT_URL = "http://localhost:8765"
+ANKICONNECT_URL = os.environ.get("ANKICONNECT_URL", "http://localhost:8766")
 
 MODEL_NAME = "AutoAnki Chinese"
 FIELDS = [
@@ -87,18 +93,34 @@ def _invoke(action: str, **params) -> dict:
 
 
 def _ensure_model() -> None:
-    """Create 'AutoAnki Chinese' note type if it doesn't exist."""
+    """Create 'AutoAnki Chinese' note type, or update its fields/templates/CSS if it already exists."""
     existing = _invoke("modelNames")
-    if MODEL_NAME in existing:
+    if MODEL_NAME not in existing:
+        _invoke(
+            "createModel",
+            modelName=MODEL_NAME,
+            inOrderFields=FIELDS,
+            css=CSS,
+            cardTemplates=TEMPLATES,
+        )
         return
 
+    # Model exists — add any fields the template needs but the model is missing,
+    # then sync templates and CSS.
+    current_fields = _invoke("modelFieldNames", modelName=MODEL_NAME)
+    for field in FIELDS:
+        if field not in current_fields:
+            _invoke("modelFieldAdd", modelName=MODEL_NAME, fieldName=field, index=len(current_fields))
+            current_fields.append(field)
+
     _invoke(
-        "createModel",
-        modelName=MODEL_NAME,
-        inOrderFields=FIELDS,
-        css=CSS,
-        cardTemplates=TEMPLATES,
+        "updateModelTemplates",
+        model={
+            "name": MODEL_NAME,
+            "templates": {t["Name"]: {"Front": t["Front"], "Back": t["Back"]} for t in TEMPLATES},
+        },
     )
+    _invoke("updateModelStyling", model={"name": MODEL_NAME, "css": CSS})
 
 
 def _store_media(clip_path: Path) -> str:

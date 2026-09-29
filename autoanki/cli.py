@@ -10,7 +10,7 @@ from autoanki.subtitles import parse_vtt
 from autoanki.clip import extract_clips
 from autoanki.translate import translate_segments
 from autoanki.cards import generate_deck
-from autoanki.ocr import ocr_segments
+from autoanki.morph import load_known_morphs, unknown_morphs
 
 
 def _process_one(url: str, args, work_dir: Path) -> None:
@@ -35,8 +35,10 @@ def _process_one(url: str, args, work_dir: Path) -> None:
         return
 
     # Stage 3: Extract clips
-    print(f"Extracting {len(segments)} video clips...")
-    clip_paths = extract_clips(dl.video_path, segments, work_dir / "clips")
+    print(f"Extracting {len(segments)} video clips (padding={args.clip_padding}s)...")
+    clip_paths = extract_clips(
+        dl.video_path, segments, work_dir / "clips", padding=args.clip_padding
+    )
     print(f"  Extracted {len(clip_paths)} clips")
 
     # Stage 4: Get Chinese text + English translations
@@ -57,6 +59,7 @@ def _process_one(url: str, args, work_dir: Path) -> None:
             print(f"Translating {len(segments)} English segments to Chinese...")
             chinese_texts = translate_en_to_zh(translations)
         else:
+            from autoanki.ocr import ocr_segments  # lazy: PaddleOCR is heavy
             print(f"OCR-ing {len(segments)} frames for burned-in Chinese text...")
             chinese_texts = ocr_segments(dl.video_path, segments, work_dir)
 
@@ -85,6 +88,23 @@ def _process_one(url: str, args, work_dir: Path) -> None:
 
         final_count = sum(1 for t in chinese_texts if t)
         print(f"  Final: {final_count}/{len(segments)} segments with Chinese text")
+
+    # Stage 4b: i+1 filter — drop segments where every morph is already known.
+    if args.i_plus_one:
+        known = load_known_morphs()
+        before = len(segments)
+        keep = [
+            (s, t, c)
+            for s, t, c in zip(segments, translations, clip_paths)
+            if len(unknown_morphs(s.text, known)) == 1
+        ]
+        segments = [s for s, _, _ in keep]
+        translations = [t for _, t, _ in keep]
+        clip_paths = [c for _, _, c in keep]
+        print(f"  i+1 filter: kept {len(segments)}/{before} segments with exactly 1 unknown morph")
+        if not segments:
+            print("Nothing survived the i+1 filter. Skipping.")
+            return
 
     # Stage 5: Output cards
     if args.ankiconnect:
@@ -142,7 +162,18 @@ def main():
     parser.add_argument(
         "--ankiconnect",
         action="store_true",
-        help="Push cards to Anki via AnkiConnect (localhost:8765) instead of .apkg",
+        help="Push cards to Anki via AnkiConnect (default http://localhost:8766, override with ANKICONNECT_URL) instead of .apkg",
+    )
+    parser.add_argument(
+        "--clip-padding",
+        type=float,
+        default=0.4,
+        help="Seconds of buffer before/after each subtitle when cutting clips (default: 0.4)",
+    )
+    parser.add_argument(
+        "--i-plus-one",
+        action="store_true",
+        help="Only keep sentences with exactly one unknown morph (drops all-known and multi-unknown)",
     )
 
     args = parser.parse_args()

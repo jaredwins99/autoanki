@@ -20,6 +20,17 @@ def load_known_morphs(csv_path: Path = DEFAULT_KNOWN_CSV) -> set[str]:
         return {row["Morph-Lemma"] for row in reader if row.get("Morph-Lemma")}
 
 
+def unknown_morphs(text: str, known: set[str]) -> list[str]:
+    """Return the Chinese morphs in `text` that aren't in `known` (in order, dedup)."""
+    seen: set[str] = set()
+    out: list[str] = []
+    for tok in jieba.cut(text):
+        if _HAN_RE.search(tok) and tok not in known and tok not in seen:
+            out.append(tok)
+            seen.add(tok)
+    return out
+
+
 def highlight_first_unknown(text: str, known: set[str]) -> str:
     """Wrap the first unknown Chinese morph in a morph-status span.
 
@@ -29,15 +40,17 @@ def highlight_first_unknown(text: str, known: set[str]) -> str:
     if not text:
         return ""
 
+    unknowns = set(unknown_morphs(text, known))
+    if not unknowns:
+        return text
+
     tokens = list(jieba.cut(text))
     highlighted = False
     parts: list[str] = []
-
     for tok in tokens:
-        if not highlighted and _HAN_RE.search(tok) and tok not in known:
+        if not highlighted and tok in unknowns:
             parts.append(f'<span morph-status="unknown">{tok}</span>')
             highlighted = True
         else:
             parts.append(tok)
-
     return "".join(parts)
