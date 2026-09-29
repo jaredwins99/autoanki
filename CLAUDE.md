@@ -1,12 +1,47 @@
 # autoanki
 
-Clip Chinese TV shows/dramas into sentence-level video/audio segments, generate Anki flashcards with difficulty calibrated to the user via MorphMan (i+1 learning).
+Clip Chinese TV shows/dramas into sentence-level video/audio segments, generate Anki flashcards with difficulty calibrated to the learner (i+1: one unknown morph per card, highlighted).
 
 ## Core Rules
 - **Nothing is sacred.** Code, docs, plans — everything is subject to deletion and refactoring.
 - **Prefer deletion over accumulation.** Lean repo with correct files beats bloated repo with stale files.
 - **Never use MCP Linear tools** — they hang in WSL2. Use `scripts/linear.sh` or direct `curl` instead.
 - **Questions to the user go through AskUserQuestion** with multiple-choice options so the user can respond with keystrokes.
+- **Ask only when blocked on the user's call.** Read `notes/INDEX.md` and `legibility/docs/` first, take sensible defaults and say which, and never re-ask a settled question.
+
+## 1. Validation — only empirical evidence counts
+
+Code looking right is a hypothesis. Build in small blocks: write it, run it,
+see the output, then move on. Don't stack unvalidated changes.
+
+**What counts here**: a predicate or parser exercised on real inputs with
+its output shown; a pipeline stage run on a real video or a cached work dir
+(`~/.cache/autoanki/<video-id>/`); for anything that ends up on a card,
+frames pulled from the clip and compared against the card text.
+
+**What does not count**: "this should work", a diff that reads correctly,
+the notes gate passing (it checks documentation, not behavior).
+
+**Red flags**: 3+ edits without running anything; reporting a deck as done
+without looking at a sampled card against its clip.
+
+## 2. Fixed point — don't change what you weren't asked to
+
+Existing code and prose stay as they are unless changing them is an
+explicit, named decision. No renames, reformatting, "while I'm here"
+cleanups, or softened wording. A secondary change is legitimate only when
+the requested change requires it. Before handing off, `git diff`: every
+hunk must trace to something asked for or explicitly announced.
+
+## 3. Subjective judgment — no regex for taste
+
+Objective checks (does the OCR text match the frame, does the sentence have
+exactly one unknown morph, does the deck name parse) are code. Taste (is
+this card worth studying, is this translation natural, is the filter too
+strict) is not: bring it to the user with AskUserQuestion, or have a
+subagent score it against a stated rubric. Noise predicates in
+`autoanki/filters.py` match fixed markers (♪, 华策TV, 演唱：); they must not
+grow into "does this look like dialogue" heuristics.
 
 ## Notes — the reasoning, kept honest
 
@@ -42,6 +77,18 @@ Files map 1:1 to five tenets (ported from `~/dev_template`):
 
 Root marker files (`CLAUDE.md`, `README.md`, `pyproject.toml`, `.pre-commit-config.yaml`, `.gitignore`) stay at repo root — they're nested under their tenet only in VS Code's file-nesting display.
 
+## Where things are
+
+- **Structure and data flow**: `legibility/docs/architecture.md`
+- **Why each module is the way it is**: `notes/INDEX.md` → `notes/decisions/`
+- **Open work**: `notes/open/` (quiz corpus, web GUI, vocab-level source)
+- **History of problems and fixes**: `legibility/docs/process.md`
+- **Current build plan**: `~/.claude/plans/synchronous-squishing-treasure.md`
+
+Runtime: ffmpeg, `claude` CLI, PaddlePaddle + PaddleOCR, deno +
+`yt-dlp-ejs>=0.8` (YouTube's JS challenge), AnkiConnect at
+`localhost:8555` (8765 is taken by another local service).
+
 ## Agent System
 
 Atlas (main agent) orchestrates. Delegate heavy lifting to subagents.
@@ -54,7 +101,7 @@ Atlas (main agent) orchestrates. Delegate heavy lifting to subagents.
 | **Reviewer** | `/project:reviewer` | opus | Code review. Reads diffs, produces critique. Never writes code |
 | **Prometheus** | `/project:prometheus` | opus | Deep planner. Writes plans to `plans/`. Never implements |
 | **Socrates** | `/project:socrates` | opus | Asks user critical multiple-choice questions via AskUserQuestion |
-| **Debrief** | `/project:debrief` | opus | Extracts lessons from session, updates CLAUDE.md + lessons |
+| **Debrief** | `/project:debrief` | opus | Extracts lessons from session into `notes/` and CLAUDE.md |
 
 ## Orchestration Rules
 
@@ -80,17 +127,3 @@ Atlas (main agent) orchestrates. Delegate heavy lifting to subagents.
 - Team ID: `98283b2d-bded-4e84-89d8-46696d2cc2c3`
 - Script: `scripts/linear.sh` (direct GraphQL curl, no MCP)
 - States: Backlog, Todo, In Progress, Done, Canceled, Duplicate
-
-## Architecture Decisions
-
-- **Video source**: yt-dlp from YouTube/Bilibili (video + audio + auto-generated subs)
-- **Card format**: Video clip + Chinese text + English translation
-- **Translation**: Claude Code subagent translates inline during card generation (no external API)
-- **NLP**: jieba for Chinese word segmentation
-- **Clip strategy**: One subtitle line = one clip (simplest, upgrade to sentence merging later)
-- **MVP**: Basic pipeline (video in -> Anki deck out), then layer on MorphMan i+1 filtering
-- **MorphMan**: Deferred to post-MVP phase
-
-## Tech Stack
-
-Python, yt-dlp, ffmpeg, jieba, genanki, MorphMan (post-MVP), SRT/VTT subtitle parsing

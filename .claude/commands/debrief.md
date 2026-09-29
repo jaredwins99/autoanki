@@ -14,11 +14,11 @@ Review the current conversation and extract lessons the user taught through corr
 
 2. **Read the existing files:**
    - `CLAUDE.md` — check what rules already exist
-   - `plans/lessons-and-standards.md` — check what's already documented
+   - `notes/INDEX.md` — check what decisions/findings are already documented
 
 3. **For each new lesson, decide where it goes:**
    - **Behavioral rule that should never be violated** → add to CLAUDE.md under "Core Rules"
-   - **Technical detail, example, or specification** → add to `plans/lessons-and-standards.md`
+   - **Technical decision or fact about the data** → a note in `notes/decisions/` or `notes/findings/` (format: `legibility/decision-notes.md`; the notes gate checks it)
    - **Already captured** → skip it, don't duplicate
 
 4. **Write the updates.** Be concrete and direct:
