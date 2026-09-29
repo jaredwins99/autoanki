@@ -8,6 +8,40 @@ Clip Chinese TV shows/dramas into sentence-level video/audio segments, generate 
 - **Never use MCP Linear tools** — they hang in WSL2. Use `scripts/linear.sh` or direct `curl` instead.
 - **Questions to the user go through AskUserQuestion** with multiple-choice options so the user can respond with keystrokes.
 
+## Notes — the reasoning, kept honest
+
+Full standard: `legibility/decision-notes.md`.
+Gate: `python correctness/checks/check_notes.py [--evidence]`
+
+Write a note when a future reader would otherwise re-derive or contradict
+something: a decision and what it rejected, a fact about the data with the
+command that shows it, an open question and what it blocks, a pointer outside
+the repository. Do not write progress logs.
+
+Every note declares the files it covers, in its frontmatter. Four things fail
+the check: a covered file that no longer exists, a source file no note covers,
+one file decided by two notes, and a finding whose evidence command no longer
+prints its claim.
+
+When the gate blocks you, the note or the code is wrong; fix one of them. Do
+not delete a note to pass, do not narrow `notes/coverage.ini` to hide a file,
+and do not edit `notes/INDEX.md`, which is generated.
+
+When you add a directory or a language to the project, widen
+`notes/coverage.ini` in the same change: code outside the scope is code the
+check cannot see.
+
+## Tenet layout
+
+Files map 1:1 to five tenets (ported from `~/dev_template`):
+
+- `notes/` — decision/finding/open/reference notes + `coverage.ini` + generated `INDEX.md`
+- `correctness/` — `checks/`, `hooks/`, `tests/` (the note-gate lives here)
+- `legibility/` — `decision-notes.md` (the note-writing standard), `docs/`
+- `reproducibility/`, `observability/`, `security/` — populated as content lands
+
+Root marker files (`CLAUDE.md`, `README.md`, `pyproject.toml`, `.pre-commit-config.yaml`, `.gitignore`) stay at repo root — they're nested under their tenet only in VS Code's file-nesting display.
+
 ## Agent System
 
 Atlas (main agent) orchestrates. Delegate heavy lifting to subagents.

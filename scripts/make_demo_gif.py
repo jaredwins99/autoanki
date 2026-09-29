@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build docs/demo.gif: 2x2 grid of cards, one new word highlighted per card.
+"""Build legibility/docs/demo.gif: 2x2 grid of cards, one new word highlighted per card.
 
 Renders text panels with PIL (so a single word can be colored), then composes
 four extracted .apkg clips into a grid via ffmpeg.
@@ -16,7 +16,7 @@ from PIL import Image, ImageDraw, ImageFont
 ROOT = Path(__file__).resolve().parent.parent
 APKG = ROOT / "Uj__X2BRhyo.apkg"
 WORK = ROOT / "data" / "apkg_extract"
-OUT = ROOT / "docs" / "demo.gif"
+OUT = ROOT / "legibility" / "docs" / "demo.gif"
 
 FONT_CJK = "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf"
 FONT_LAT = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
