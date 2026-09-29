@@ -131,17 +131,30 @@ def _process_one(url: str, args, work_dir: Path) -> None:
             print("Nothing survived the i+1 filter. Skipping.")
             return
 
-    # Stage 5: Output cards
+    # Stage 5: Output cards — resolve deck naming
+    from autoanki.naming import parse_show_episode, build_deck_name
+
+    parsed_show, parsed_episode = parse_show_episode(dl.title)
+    show = args.show or parsed_show
+    episode = args.episode or parsed_episode
+    deck_name = build_deck_name(args.deck_root, show, episode)
+
     if args.ankiconnect:
         from autoanki.ankiconnect import push_to_anki
-        print("Pushing cards to Anki via AnkiConnect...")
-        count = push_to_anki(dl.title, segments, translations, clip_paths)
-        print(f"  Pushed {count} cards to deck AutoAnki::{dl.title}")
+        print(f"Pushing cards to Anki via AnkiConnect (deck: {deck_name})...")
+        count = push_to_anki(
+            dl.title, segments, translations, clip_paths,
+            deck_root=args.deck_root, show=show, episode=episode,
+        )
+        print(f"  Pushed {count} cards to {deck_name}")
         print(f"\nDone! Cards are in Anki.")
     else:
         output_path = Path(args.output) if args.output else Path(f"{dl.title}.apkg")
-        print("Generating Anki deck...")
-        result = generate_deck(dl.title, segments, translations, clip_paths, output_path)
+        print(f"Generating Anki deck (deck: {deck_name})...")
+        result = generate_deck(
+            dl.title, segments, translations, clip_paths, output_path,
+            deck_root=args.deck_root, show=show, episode=episode,
+        )
         print(f"  Deck saved to: {result}")
         print(f"\nDone! Import {result} into Anki.")
 
@@ -212,6 +225,19 @@ def main():
         "--keep-noise",
         action="store_true",
         help="Skip the song-lyric / credit / watermark / stage-direction / repeated-static filter",
+    )
+    parser.add_argument(
+        "--deck-root",
+        default="AutoAnki",
+        help="Top-level Anki deck name (default: AutoAnki). Full deck becomes <root>::<show>::<episode>",
+    )
+    parser.add_argument(
+        "--show",
+        help="Show name override; if omitted, autoanki parses it from the video title.",
+    )
+    parser.add_argument(
+        "--episode",
+        help="Episode label override (e.g. EP01, S01E03); if omitted, autoanki parses it from the video title.",
     )
 
     args = parser.parse_args()

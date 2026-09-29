@@ -142,9 +142,21 @@ def push_to_anki(
     segments: list[Segment],
     translations: list[str],
     clip_paths: list[Path],
+    deck_root: str = "AutoAnki",
+    show: str | None = None,
+    episode: str | None = None,
 ) -> int:
-    """Create deck, ensure model, push notes. Returns count of notes added/updated."""
-    deck_name = f"AutoAnki::{title}"
+    """Create deck, ensure model, push notes. Returns count of notes added/updated.
+
+    Deck name is `{deck_root}::{show}::{episode}` when show is given (with
+    episode optional); otherwise `{deck_root}::{title}` for backward compat.
+    """
+    from autoanki.naming import build_deck_name
+
+    if show is not None:
+        deck_name = build_deck_name(deck_root, show, episode)
+    else:
+        deck_name = f"{deck_root}::{title}"
 
     # Ensure deck and model exist
     _invoke("createDeck", deck=deck_name)

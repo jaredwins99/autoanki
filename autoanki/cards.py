@@ -83,9 +83,25 @@ def generate_deck(
     translations: list[str],
     clip_paths: list[Path],
     output_path: Path,
+    deck_root: str = "AutoAnki",
+    show: str | None = None,
+    episode: str | None = None,
 ) -> Path:
-    """Generate .apkg deck with embedded video clips."""
-    deck = genanki.Deck(_deck_id_from_title(title), f"AutoAnki::{title}")
+    """Generate .apkg deck with embedded video clips.
+
+    Deck name is `{deck_root}::{show}::{episode}` when show is given (with
+    episode optional); falls back to `{deck_root}::{title}` for backwards
+    compatibility with callers that don't yet parse show/episode.
+    """
+    from autoanki.naming import build_deck_name
+
+    if show is not None:
+        deck_name = build_deck_name(deck_root, show, episode)
+        deck_id_key = deck_name
+    else:
+        deck_name = f"{deck_root}::{title}"
+        deck_id_key = title
+    deck = genanki.Deck(_deck_id_from_title(deck_id_key), deck_name)
     media_files = []
     seen_texts: set[str] = set()
     known = load_known_morphs()

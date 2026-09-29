@@ -18,6 +18,7 @@ declarations, so it cannot drift from the notes themselves.
 | decision | [Persist the user's known-morph set as YAML at ~/.config/autoanki/profile.yaml, four modes converge on the same shape](decisions/level-profile-persistence.md) | autoanki/level/profile.py |
 | decision | [TUI wizard dispatches on --mode; interactive prompts fall back to hsk baseline when unattended](decisions/level-setup-cli.md) | autoanki/level/setup_cli.py |
 | decision | [Highlight only the first unknown morph per sentence, at generation time, against the shipped HSK CSV](decisions/morph-first-unknown-highlight.md) | autoanki/morph.py |
+| decision | [Parse show+episode from video title with an ordered pattern list; nest under {deck_root}::{show}::{episode}](decisions/naming-show-episode.md) | autoanki/naming.py |
 | decision | [Post-correct PaddleOCR with Claude, giving it the English subtitle as ground-truth context](decisions/ocr-correct-claude-postpass.md) | autoanki/ocr_correct.py |
 | decision | [PaddleOCR PP-OCRv5 with a bottom-25% crop + Y-band 20-45% + X-center 10-90% + confidence 0.5 filter](decisions/ocr-paddle-yband-filter.md) | autoanki/ocr.py |
 | decision | [When OCR isn't running, translate the English subtitle to spoken Chinese via Claude CLI](decisions/ocr-preprocessing-en-to-zh.md) | autoanki/ocr_preprocessing.py |
