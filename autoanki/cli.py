@@ -1,23 +1,29 @@
 """CLI entry point: video URL in -> Anki deck out."""
 
 import argparse
+import os
 import shutil
 import tempfile
 from pathlib import Path
 
-from autoanki.download import download
+from autoanki.download import _extract_video_id, download
 from autoanki.subtitles import parse_vtt
 from autoanki.clip import extract_clips
 from autoanki.translate import translate_segments
 from autoanki.cards import generate_deck
 from autoanki.morph import load_known_morphs, unknown_morphs
 
+# Downloads live outside the (possibly temporary) work dir so a run's cleanup
+# never deletes a source video; re-downloading can be blocked by YouTube.
+DOWNLOAD_CACHE = Path(os.environ.get("AUTOANKI_CACHE", Path.home() / ".cache" / "autoanki"))
+
 
 def _process_one(url: str, args, work_dir: Path) -> None:
     """Process a single video URL through the full pipeline."""
     # Stage 1: Download
     print("Downloading video and subtitles...")
-    dl = download(url, work_dir / "download", cookies=args.cookies)
+    video_id = _extract_video_id(url) or "unknown"
+    dl = download(url, DOWNLOAD_CACHE / video_id / "download", cookies=args.cookies)
     print(f"  Video: {dl.video_path.name}")
     print(f"  Subs:  {dl.subtitle_path.name}")
     print(f"  Lang:  {dl.sub_lang}")

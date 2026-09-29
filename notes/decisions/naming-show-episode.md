@@ -1,19 +1,22 @@
 ---
 kind: decision
-title: Parse show+episode from video title with an ordered pattern list; nest under {deck_root}::{show}::{episode}
+title: Parse show+episode from the first pipe-segment carrying an episode marker; nest under {deck_root}::{show}::{episode}
 covers: autoanki/naming.py
 ---
 
 ## What was chosen
 
-`parse_show_episode(video_title)` walks an ordered list of episode-marker
-regexes and returns `(show, episode)`. Patterns run in specificity order:
-`SNNENN` first (season+episode), then `EP\d+` / `Episode \d+`, then bare
-`E\d+`, then Chinese `第\d+集`. Once a match is found, the episode label is
-normalised to two-digit `EPNN` (or preserved as `SNNENN`), and the show
-name is what appeared BEFORE the marker (everything after — episode
-subtitles like "The Return", or repost tags — is dropped). Bracketed tags
-(`[Eng Sub]`, `(HD)`, `【中字】`) are stripped up-front.
+`parse_show_episode(video_title)` splits the title on `|` (Chinese
+broadcaster uploads read `【去有风的地方】第1集 | 刘亦菲、李现主演 | Meet
+Yourself EP1 | … | ENG SUB`) and takes the first segment containing an
+episode marker: `SNNENN`, `EP\d+` / `Episode \d+`, bare `E\d+`, or `第\d+集`,
+using whichever occurs earliest in that segment. The episode is normalised to
+two-digit `EPNN` (or kept as `SNNENN`). The show is what comes before the
+marker in that segment. If nothing does (`Show | Episode 100`), the first
+marker-free segment is the show. `[Eng Sub]` and `(HD)` style tags are
+stripped; `【…】` and `《…》` are unwrapped, because Chinese broadcasters put
+the show name itself in them. The real Meet Yourself title yields
+`AutoAnki::去有风的地方::EP01`.
 
 `build_deck_name(deck_root, show, episode)` composes
 `{deck_root}::{show}::{episode}` when the episode is known and
@@ -27,6 +30,10 @@ the CLI parses from `dl.title` and lets `--show` / `--episode` /
 
 ## What was rejected, and why
 
+- **Try patterns in priority order across the whole title.** The first
+  version did this; on the real title `EP1` (late, in the English segment)
+  beat `第1集` (early), and the show became `【去有风的地方】第1集 | 刘亦菲、
+  李现主演 | Meet Yourself`.
 - **Take everything after the episode marker as the show.** Real titles
   put the show name first and the episode subtitle after: "Meet Yourself
   S01E03 - The Return" is show "Meet Yourself", not show "The Return".

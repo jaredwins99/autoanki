@@ -16,7 +16,15 @@ AnkiConnect are imported inside their branches, not at module top, so
 `--help` and `.apkg` runs don't pay the paddle load cost or require the
 paddle install.
 
+Downloads go to `$AUTOANKI_CACHE/<video-id>/download/` (default
+`~/.cache/autoanki/`), never into the work dir, so cleaning up a temporary
+work dir can't delete the source video.
+
 ## What was rejected, and why
+
+- **Downloads inside the temp work dir.** That was the original layout, and
+  the default cleanup deleted the episode after every run. When YouTube
+  later blocked re-downloads (403 on every stream), no copy was left.
 
 - **Subcommands (`autoanki download`, `autoanki cards`, …).** Every real run
   wants the full end-to-end; separate commands would only add glue for the

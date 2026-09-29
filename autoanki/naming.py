@@ -30,6 +30,12 @@ _EPISODE_PATTERNS = [
 # Junk suffixes typically found on YouTube titles: [Eng Sub], (HD), etc.
 _JUNK_TAILS = re.compile(r"[\[\(（].*?[\]\)）]")
 
+# Chinese broadcasters wrap the show name itself: 【去有风的地方】, 《去有风的地方》.
+_TITLE_BRACKETS = re.compile(r"[【《](.+?)[】》]")
+
+# Broadcaster titles separate name / cast / English title with pipes.
+_SEGMENT_SPLIT = re.compile(r"\s*[|｜]\s*")
+
 # Divider/label residue after episode is stripped.
 _TAIL_SEPARATORS = re.compile(r"[\s\-\|:：]+$")
 
@@ -38,26 +44,45 @@ def _strip_tail_junk(text: str) -> str:
     return _TAIL_SEPARATORS.sub("", _JUNK_TAILS.sub("", text)).strip()
 
 
+def _clean_show(text: str) -> str:
+    return _strip_tail_junk(_TITLE_BRACKETS.sub(r"\1", text))
+
+
+def _find_episode(text: str) -> Optional[re.Match]:
+    """Earliest episode marker in `text`, with its formatter; SxxExx wins ties."""
+    best = None
+    for pattern, formatter in _EPISODE_PATTERNS:
+        match = pattern.search(text)
+        if match and (best is None or match.start() < best[0].start()):
+            best = (match, formatter)
+    return best
+
+
 def parse_show_episode(video_title: str) -> tuple[str, Optional[str]]:
     """Best-effort split of a video title into (show, episode).
 
     Episode is normalised to zero-padded `EP\\d{2}` (or `S\\d{2}E\\d{2}` for
-    season-shaped labels). Show is what remains after removing the episode
-    token and trailing bracketed tags.
+    season-shaped labels). The title is split on `|`; the first segment that
+    carries an episode marker supplies both, with the show being what comes
+    before the marker. If that segment has nothing before its marker, the
+    first marker-free segment is the show.
     """
-    remainder = _JUNK_TAILS.sub("", video_title).strip()
-    episode: Optional[str] = None
-    for pattern, formatter in _EPISODE_PATTERNS:
-        match = pattern.search(remainder)
-        if match:
-            episode = formatter(match)
-            # Everything after the episode marker is typically an episode
-            # subtitle ("The Return") or a repost tag — drop it. The show is
-            # what appears before the marker.
-            remainder = remainder[:match.start()]
-            break
-    show = _strip_tail_junk(remainder)
-    return show or video_title.strip(), episode
+    segments = [s for s in _SEGMENT_SPLIT.split(video_title) if s.strip()] or [video_title]
+    cleaned = [_JUNK_TAILS.sub("", s).strip() for s in segments]
+
+    for seg in cleaned:
+        found = _find_episode(seg)
+        if not found:
+            continue
+        match, formatter = found
+        # Everything after the marker is an episode subtitle ("The Return")
+        # or a repost tag; the show is what comes before it.
+        show = _clean_show(seg[:match.start()])
+        if not show:
+            show = next((_clean_show(s) for s in cleaned if not _find_episode(s) and _clean_show(s)), "")
+        return show or video_title.strip(), formatter(match)
+
+    return _clean_show(cleaned[0]) or video_title.strip(), None
 
 
 def build_deck_name(deck_root: str, show: str, episode: Optional[str]) -> str:

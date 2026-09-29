@@ -8,6 +8,7 @@ Clip Chinese TV shows/dramas into sentence-level video/audio segments, generate 
 - **Never use MCP Linear tools** — they hang in WSL2. Use `scripts/linear.sh` or direct `curl` instead.
 - **Questions to the user go through AskUserQuestion** with multiple-choice options so the user can respond with keystrokes.
 - **Ask only when blocked on the user's call.** Read `notes/INDEX.md` and `legibility/docs/` first, take sensible defaults and say which, and never re-ask a settled question.
+- **Never delete downloaded source media.** Videos, subtitles, and metadata under `~/.cache/autoanki/<video-id>/download/` (or anywhere else a video was fetched to) are irreplaceable inputs, not scratch: YouTube blocks re-downloads after repeated requests, and an episode deleted "because it can be re-fetched" once cost a whole session. Clean up only files you generated from them (clips, frames), and only when asked.
 
 ## 1. Validation — only empirical evidence counts
 

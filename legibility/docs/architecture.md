@@ -86,7 +86,9 @@ autoanki setup [--mode M]        build ~/.config/autoanki/profile.yaml
 | `--cookies` | none | cookies file for login-required videos |
 
 Environment: `ANKICONNECT_URL` (default `http://localhost:8555`),
-`AUTOANKI_PROFILE` (default `~/.config/autoanki/profile.yaml`).
+`AUTOANKI_PROFILE` (default `~/.config/autoanki/profile.yaml`),
+`AUTOANKI_CACHE` (default `~/.cache/autoanki`; downloads persist in
+`<cache>/<video-id>/download/` regardless of `--work-dir`).
 
 ## Card model
 
