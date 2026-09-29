@@ -6,9 +6,10 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
+# No "zh-Hans-en"-style codes: those are YouTube's machine translation of the
+# English track, and taking one as Chinese skips OCR of the burned-in subs.
 PREFERRED_SUB_LANGS = [
     "zh-Hans", "zh", "zh-CN", "zh-Hant", "zh-TW",
-    "zh-Hans-en", "zh-Hant-en",
     "en",
 ]
 
@@ -67,7 +68,7 @@ def download(url: str, output_dir: Path, cookies: str | None = None) -> Download
 
     cmd = [
         "yt-dlp",
-        "--js-runtimes", "node",
+        "--js-runtimes", "deno",
         "--format", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
         "--merge-output-format", "mp4",
         "--write-subs",

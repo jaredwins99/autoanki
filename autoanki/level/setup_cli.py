@@ -12,7 +12,6 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from autoanki.hsk import _ALL_WORDS
 from autoanki.level.profile import DEFAULT_PATH, Profile
 
 
@@ -56,12 +55,17 @@ def _prompt_int(question: str, lo: int, hi: int, default: int | None = None) -> 
 
 
 def build_hsk_profile(band: int) -> Profile:
-    """HSK 1..band as the known set. For the shipped baseline (band=5) this is the full CSV."""
-    # The inline _ALL_WORDS in hsk.py is HSK 1-5 + new HSK 1-6. Callers pick a
-    # band 1-6; for now we hand back the full set for any band since we don't
-    # ship per-band separations yet. Wired for future granularity.
-    known = set(_ALL_WORDS)
-    return Profile(source="hsk", hsk_baseline=band, known_morphs=known)
+    """HSK baseline as the known set, jieba-compound-expanded.
+
+    Uses the shipped CSV (HSK words + compounds built from known characters),
+    not the raw HSK word list: jieba segments sentences into compounds like
+    房号, and a raw-word known set marks those unknown even when every
+    character is known, which makes i+1 drop nearly every sentence.
+    Per-band separation isn't shipped yet, so `band` is recorded only.
+    """
+    from autoanki.morph import load_baseline_csv
+
+    return Profile(source="hsk", hsk_baseline=band, known_morphs=load_baseline_csv())
 
 
 def build_anki_profile(deck_filter: str | None) -> Profile:
@@ -76,7 +80,9 @@ def build_anki_profile(deck_filter: str | None) -> Profile:
 def build_hybrid_profile(band: int, deck_filter: str | None) -> Profile:
     from autoanki.level.anki_import import scan_mature_morphs
 
-    base = set(_ALL_WORDS)
+    from autoanki.morph import load_baseline_csv
+
+    base = load_baseline_csv()
     print(f"  Querying Anki for mature cards...")
     anki = scan_mature_morphs(deck_filter=deck_filter)
     print(f"  Anki mature morphs: {len(anki)}")

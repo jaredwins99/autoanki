@@ -13,6 +13,13 @@ DEFAULT_KNOWN_CSV = Path(__file__).resolve().parent.parent / "data" / "hsk1-5_kn
 _HAN_RE = re.compile(r"[一-鿿]")
 
 
+def load_baseline_csv(csv_path: Path = DEFAULT_KNOWN_CSV) -> set[str]:
+    """The shipped HSK 1-5 + jieba-compound baseline, ignoring any user profile."""
+    with csv_path.open(encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        return {row["Morph-Lemma"] for row in reader if row.get("Morph-Lemma")}
+
+
 def load_known_morphs(csv_path: Path = DEFAULT_KNOWN_CSV) -> set[str]:
     """Load the known-morph set.
 
@@ -25,10 +32,7 @@ def load_known_morphs(csv_path: Path = DEFAULT_KNOWN_CSV) -> set[str]:
     profile = Profile.load()
     if profile is not None:
         return profile.known_morphs
-
-    with csv_path.open(encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        return {row["Morph-Lemma"] for row in reader if row.get("Morph-Lemma")}
+    return load_baseline_csv(csv_path)
 
 
 def unknown_morphs(text: str, known: set[str]) -> list[str]:

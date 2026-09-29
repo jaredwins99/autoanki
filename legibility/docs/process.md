@@ -66,7 +66,7 @@ This is where all the real problems lived. See Section 2.
 - Chinese subs available → translate to English
 - English subs only → OCR frames for Chinese, use English as translation
 
-**Systematize:** Always download both Chinese and English subs. The `sub_langs` list in `download.py` covers: `zh-Hans, zh, zh-CN, zh-Hant, zh-TW, zh-Hans-en, zh-Hant-en, en`. Prefer Chinese, fall back to English.
+**Systematize:** Always download both Chinese and English subs. The `sub_langs` list in `download.py` covers: `zh-Hans, zh, zh-CN, zh-Hant, zh-TW, en`. Prefer Chinese, fall back to English. Never include YouTube's auto-translated codes (`zh-Hans-en`): they are machine translations of the English track, and taking one as Chinese skips OCR of the real burned-in subs.
 
 ### Problem 2: YouTube Rate Limiting (429)
 **Symptom:** Multiple yt-dlp calls (metadata probe + download + subs) triggered 429 errors.

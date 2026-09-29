@@ -11,10 +11,10 @@ covers: autoanki/level/setup_cli.py
 passed, run non-interactively; otherwise prompt through four choices
 (`hsk`, `anki`, `hybrid`, `quiz`). Per mode:
 
-- **hsk**: prompt for band 1-6, produce a profile from the shipped HSK
-  frozenset in `autoanki/hsk.py`. (Per-band separation is future work; the
-  current `_ALL_WORDS` is combined old-HSK-1-5 + new-HSK-1-6, so the band
-  argument is currently recorded but does not further narrow the set.)
+- **hsk**: prompt for band 1-6, produce a profile from the shipped
+  compound-expanded CSV via `morph.load_baseline_csv()` (36,586 morphs).
+  Per-band separation is future work, so the band is recorded but does not
+  yet narrow the set.
 - **anki**: prompt for an optional deck-name filter, call
   `scan_mature_morphs`, save the returned morph set.
 - **hybrid**: HSK baseline union Anki mature morphs — max coverage without
