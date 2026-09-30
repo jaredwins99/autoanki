@@ -220,9 +220,19 @@ def push_to_anki(
         count += 1
 
     # The deck mirrors this run's output: notes from an earlier run that no
-    # longer pass the filters are removed.
-    stale = [n for n in _invoke("findNotes", query=f'"deck:{deck_name}"') if n not in kept_ids]
+    # longer pass the filters are removed. `deck:X` also matches X's subdecks,
+    # so they're excluded; otherwise a show-level push would wipe its episodes.
+    in_deck = f'"deck:{deck_name}" -"deck:{deck_name}::*"'
+    stale = [n for n in _invoke("findNotes", query=in_deck) if n not in kept_ids]
     if stale:
         _invoke("deleteNotes", notes=stale)
     print(f"Done: {count} notes added/updated, {len(stale)} stale removed in '{deck_name}'.")
+
+    # Desktop Anki only syncs itself on open/close; push to AnkiWeb now so
+    # other devices get the cards with a plain Sync.
+    try:
+        _invoke("sync")
+        print("  Synced to AnkiWeb.")
+    except RuntimeError as e:
+        print(f"  AnkiWeb sync failed, cards are only on this desktop until Anki syncs: {e}")
     return count

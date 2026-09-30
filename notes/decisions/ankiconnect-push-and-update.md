@@ -16,7 +16,13 @@ field: an existing note with the same Chinese text gets `updateNoteFields`,
 otherwise `addNote` with `allowDuplicate: False`. After the push, notes in
 the deck that this run didn't add or update are deleted, so the deck mirrors
 the latest run of its episode. Cards that an improved filter now rejects
-(names, transparent compounds) leave the deck rather than lingering.
+(names, transparent compounds) leave the deck rather than lingering. The
+cleanup query is `"deck:X" -"deck:X::*"`, because Anki's `deck:X` also
+matches subdecks: a show-level push (a video with no parsed episode) would
+otherwise delete every episode deck under the show. The push then calls
+AnkiConnect's `sync`, since desktop Anki only syncs on open/close, so
+AnkiWeb, and through it the user's phone and laptop, gets the cards without
+anyone at the desktop. A failed sync only prints a warning.
 
 ## What was rejected, and why
 
