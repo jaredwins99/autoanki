@@ -19,6 +19,8 @@ autoanki/                      Python package (the pipeline)
 ├── ocr_preprocessing.py       Claude EN→ZH fallback when OCR is off or mostly empty
 ├── translate.py               Claude ZH→EN when the video has real Chinese subs
 ├── morph.py                   known-morph loading, unknown detection, first-unknown highlight
+├── pinyin.py                  tone-marked pinyin per word, as ruby, for the card back
+├── audio_lang.py              spoken-language ID per clip (Whisper) to drop non-Mandarin audio
 ├── hsk.py                     inline HSK word list + generator for the baseline CSV
 ├── naming.py                  video title → (show, episode) → Anki deck name
 ├── cards.py                   .apkg writer (genanki)
@@ -57,10 +59,14 @@ noise filter (post-OCR) ── filters.is_noise_post_ocr   watermarks, song/cred
 i+1 filter (--i-plus-one)  keep sentences with exactly one unknown morph
  │                         known set = Profile if present, else baseline CSV
  ▼
+language filter ────────── audio_lang.spoken_language: keep only clips spoken in Mandarin
+ ▼
+translate (OCR path) ───── English from each card's own Chinese (translate.py)
+ ▼
 naming.parse_show_episode  deck = <root>::<show>::<episode>
  ▼
 cards.generate_deck (.apkg)   or   ankiconnect.push_to_anki (--ankiconnect)
-   am-highlighted field = morph.highlight_first_unknown(text, known)
+   am-highlighted = morph.highlight_first_unknown(text, known); Pinyin = pinyin.pinyin_ruby(text)
 ```
 
 ## CLI
@@ -76,6 +82,7 @@ autoanki setup [--mode M]        build ~/.config/autoanki/profile.yaml
 | `--ankiconnect` | off | push to running Anki instead of writing .apkg |
 | `--i-plus-one` | off | keep only sentences with exactly one unknown morph |
 | `--keep-noise` | off | disable both noise filter passes |
+| `--keep-non-mandarin` | off | skip the spoken-language filter |
 | `--clip-padding` | `0.4` | seconds of buffer before/after each line |
 | `--deck-root` | `AutoAnki` | top-level deck |
 | `--show`, `--episode` | parsed from title | override deck naming |
@@ -94,8 +101,8 @@ Environment: `ANKICONNECT_URL` (default `http://localhost:8555`),
 
 Note type `AutoAnki Chinese`, two cards per note:
 
-- **Listening**: clip → reveal Chinese (highlighted), segmentation, English
-- **Reading**: Chinese (highlighted) → reveal clip, segmentation, English
+- **Listening**: clip → reveal Chinese (highlighted), word-by-word tone pinyin, English
+- **Reading**: Chinese (highlighted) → reveal clip, word-by-word tone pinyin, English
 
 The highlighted Chinese renders `am-highlighted` when set and falls back
 to plain `Chinese`; unknown morphs are `<span morph-status="unknown">`,

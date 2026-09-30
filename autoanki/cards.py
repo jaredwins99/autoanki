@@ -7,6 +7,7 @@ import genanki
 import jieba
 
 from autoanki.morph import highlight_first_unknown, load_known_morphs
+from autoanki.pinyin import pinyin_ruby
 from autoanki.subtitles import Segment
 
 AUTOANKI_MODEL_ID = 1607392319
@@ -25,6 +26,7 @@ AUTOANKI_MODEL = genanki.Model(
         {"name": "am-unknowns-count"},
         {"name": "am-highlighted"},
         {"name": "am-score"},
+        {"name": "Pinyin"},
     ],
     templates=[
         {
@@ -33,7 +35,7 @@ AUTOANKI_MODEL = genanki.Model(
             "afmt": '{{FrontSide}}<hr id="answer">'
             "<p>{{#am-highlighted}}{{am-highlighted}}{{/am-highlighted}}"
             "{{^am-highlighted}}{{Chinese}}{{/am-highlighted}}</p>"
-            '<p style="color: #666; font-size: 0.9em;">{{SegmentedChinese}}</p>'
+            '<p class="py">{{#Pinyin}}{{Pinyin}}{{/Pinyin}}{{^Pinyin}}{{SegmentedChinese}}{{/Pinyin}}</p>'
             '<p style="color: #888;">{{English}}</p>',
         },
         {
@@ -43,7 +45,7 @@ AUTOANKI_MODEL = genanki.Model(
             "{{^am-highlighted}}{{Chinese}}{{/am-highlighted}}</p>",
             "afmt": '{{FrontSide}}<hr id="answer">'
             "{{Video}}"
-            '<p style="color: #666; font-size: 0.9em;">{{SegmentedChinese}}</p>'
+            '<p class="py">{{#Pinyin}}{{Pinyin}}{{/Pinyin}}{{^Pinyin}}{{SegmentedChinese}}{{/Pinyin}}</p>'
             '<p style="color: #888;">{{English}}</p>',
         },
     ],
@@ -60,7 +62,10 @@ AUTOANKI_MODEL = genanki.Model(
     "}\n"
     '[morph-status="unset"] {\n'
     "  color: #888;\n"
-    "}",
+    "}\n"
+    ".py { color: #555; font-size: 0.95em; }\n"
+    ".py ruby { margin: 0 0.2em; }\n"
+    ".py rt { color: #888; font-size: 0.65em; }",
 )
 
 
@@ -128,6 +133,7 @@ def generate_deck(
                 "",  # am-unknowns-count
                 highlight_first_unknown(seg.text, known),
                 "",  # am-score
+                pinyin_ruby(seg.text),
             ],
             sort_field=str(seg.index),
             guid=_note_guid(title, seg.index),

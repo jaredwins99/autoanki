@@ -8,6 +8,7 @@ declarations, so it cannot drift from the notes themselves.
 | kind | note | covers |
 |---|---|---|
 | decision | [Push decks live via AnkiConnect and update the note type in place on every run](decisions/ankiconnect-push-and-update.md) | autoanki/ankiconnect.py |
+| decision | [Drop clips whose spoken language isn't Mandarin, using Whisper base language ID on the unpadded audio](decisions/audio-lang-whisper-filter.md) | autoanki/audio_lang.py |
 | decision | [Ship .apkg via genanki with deterministic IDs so re-imports update instead of duplicate](decisions/cards-genanki-apkg-writer.md) | autoanki/cards.py |
 | decision | [One argparse entry point wires five staged transforms, with lazy imports for the heavy ones](decisions/cli-pipeline-shape.md) | autoanki/cli.py |
 | decision | [Cut one MP4 per segment with libx264/aac and a 0.4s pre/post padding default](decisions/clip-ffmpeg-cutter.md) | autoanki/clip.py |
@@ -22,6 +23,7 @@ declarations, so it cannot drift from the notes themselves.
 | decision | [Post-correct PaddleOCR with Claude, giving it the English subtitle as ground-truth context](decisions/ocr-correct-claude-postpass.md) | autoanki/ocr_correct.py |
 | decision | [PaddleOCR PP-OCRv5 with a bottom-25% crop + Y-band 20-45% + X-center 10-90% + confidence 0.5 filter](decisions/ocr-paddle-yband-filter.md) | autoanki/ocr.py |
 | decision | [When OCR isn't running, translate the English subtitle to spoken Chinese via Claude CLI](decisions/ocr-preprocessing-en-to-zh.md) | autoanki/ocr_preprocessing.py |
+| decision | [Tone-marked pinyin per jieba word as ruby on the card back, never on the Reading front](decisions/pinyin-ruby-per-word.md) | autoanki/pinyin.py |
 | decision | [Parse VTT with webvtt-py; drop YouTube rolling repeats, merge consecutive identicals, gate on duration/language/junk/dedup](decisions/subtitles-vtt-parse-junk-dedup.md) | autoanki/subtitles.py |
 | decision | [Chinese → English translation runs through the Claude CLI as a batched subprocess, not an API SDK](decisions/translate-claude-subagent.md) | autoanki/translate.py |
 | open | [Should `autoanki setup --gui` spin up a localhost web wizard alongside the TUI?](open/level-web-gui.md) | autoanki/level/setup_cli.py |

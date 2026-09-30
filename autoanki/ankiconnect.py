@@ -14,6 +14,7 @@ from pathlib import Path
 import jieba
 
 from autoanki.morph import highlight_first_unknown, load_known_morphs
+from autoanki.pinyin import pinyin_ruby
 from autoanki.subtitles import Segment
 
 ANKICONNECT_URL = os.environ.get("ANKICONNECT_URL", "http://localhost:8555")
@@ -21,7 +22,7 @@ ANKICONNECT_URL = os.environ.get("ANKICONNECT_URL", "http://localhost:8555")
 MODEL_NAME = "AutoAnki Chinese"
 FIELDS = [
     "Chinese", "English", "Video", "SegmentedChinese", "Index",
-    "am-unknowns", "am-unknowns-count", "am-highlighted", "am-score",
+    "am-unknowns", "am-unknowns-count", "am-highlighted", "am-score", "Pinyin",
 ]
 
 CSS = (
@@ -38,7 +39,10 @@ CSS = (
     "}\n"
     '[morph-status="unset"] {\n'
     "  color: #888;\n"
-    "}"
+    "}\n"
+    ".py { color: #555; font-size: 0.95em; }\n"
+    ".py ruby { margin: 0 0.2em; }\n"
+    ".py rt { color: #888; font-size: 0.65em; }"
 )
 
 _ZH_CELL = (
@@ -53,7 +57,7 @@ TEMPLATES = [
         "Back": (
             '{{FrontSide}}<hr id="answer">'
             f"<p>{_ZH_CELL}</p>"
-            '<p style="color: #666; font-size: 0.9em;">{{SegmentedChinese}}</p>'
+            '<p class="py">{{#Pinyin}}{{Pinyin}}{{/Pinyin}}{{^Pinyin}}{{SegmentedChinese}}{{/Pinyin}}</p>'
             '<p style="color: #888;">{{English}}</p>'
         ),
     },
@@ -63,7 +67,7 @@ TEMPLATES = [
         "Back": (
             '{{FrontSide}}<hr id="answer">'
             "{{Video}}"
-            '<p style="color: #666; font-size: 0.9em;">{{SegmentedChinese}}</p>'
+            '<p class="py">{{#Pinyin}}{{Pinyin}}{{/Pinyin}}{{^Pinyin}}{{SegmentedChinese}}{{/Pinyin}}</p>'
             '<p style="color: #888;">{{English}}</p>'
         ),
     },
@@ -181,6 +185,7 @@ def push_to_anki(
             "SegmentedChinese": _segment_chinese(seg.text),
             "Index": str(seg.index),
             "am-highlighted": highlight_first_unknown(seg.text, known),
+            "Pinyin": pinyin_ruby(seg.text),
         }
 
         # Try to find existing note (duplicate check by Chinese field in this deck)

@@ -9,6 +9,8 @@ dependencies = [
     "genanki>=0.13",
     "jieba>=0.42",
     "pyyaml>=6.0",
+    "pypinyin>=0.50",
+    "faster-whisper>=1.1",
 ]
 
 [project.scripts]

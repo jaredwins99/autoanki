@@ -16,6 +16,15 @@ AnkiConnect are imported inside their branches, not at module top, so
 `--help` and `.apkg` runs don't pay the paddle load cost or require the
 paddle install.
 
+After the i+1 filter come a spoken-language filter (drop clips whose audio
+isn't Mandarin; see `audio-lang-whisper-filter`) and, on the OCR path, a
+Claude translation of each surviving card's Chinese. The English subtitle
+line is kept only as context for OCR correction: subtitle lines split and
+reorder clauses differently from the burned-in Chinese, so a cue's English
+often translates the neighbouring Chinese line (我送您两张餐券 was paired
+with "as you check in as present."). Filtering first means only surviving
+cards are translated.
+
 Downloads go to `$AUTOANKI_CACHE/<video-id>/download/` (default
 `~/.cache/autoanki/`), never into the work dir, so cleaning up a temporary
 work dir can't delete the source video.

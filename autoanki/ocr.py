@@ -2,6 +2,7 @@
 
 import concurrent.futures
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -11,11 +12,19 @@ from paddleocr import PaddleOCR
 
 from autoanki.subtitles import Segment
 
+# oneDNN off: paddlepaddle 3.3 + PaddleOCR 3.4 raise NotImplementedError in
+# the oneDNN executor on the first predict. Without oneDNN the server models
+# take ~10s/frame on CPU; the mobile models take ~2s with the same text on
+# clean subtitle crops.
 _ocr = PaddleOCR(
     lang="ch",
     use_doc_orientation_classify=False,
     use_doc_unwarping=False,
     use_textline_orientation=False,
+    enable_mkldnn=False,
+    cpu_threads=os.cpu_count() or 4,
+    text_detection_model_name="PP-OCRv5_mobile_det",
+    text_recognition_model_name="PP-OCRv5_mobile_rec",
 )
 
 
@@ -125,6 +134,8 @@ def ocr_segments(
             sub_region = _crop_subtitle_region(image)
             cache[cache_key] = _ocr_chinese(sub_region)
             print(f"  OCR {i + 1}/{len(uncached)}: {cache[cache_key]}", end="\r")
+            if (i + 1) % 25 == 0:  # a crash mid-run keeps what's done
+                cache_path.write_text(json.dumps(cache, ensure_ascii=False, indent=2))
 
         cache_path.write_text(json.dumps(cache, ensure_ascii=False, indent=2))
         print()

@@ -137,6 +137,36 @@ def _process_one(url: str, args, work_dir: Path) -> None:
             print("Nothing survived the i+1 filter. Skipping.")
             return
 
+    # Stage 4c: spoken-language filter — drop clips where the speech isn't
+    # Mandarin (e.g. a character speaking English to a foreign guest while the
+    # burned-in subtitle shows the Chinese translation).
+    if not args.keep_non_mandarin:
+        from autoanki.audio_lang import spoken_language
+        before = len(segments)
+        keep, other = [], {}
+        for s, t, c in zip(segments, translations, clip_paths):
+            lang, _ = spoken_language(c, args.clip_padding)
+            if lang == "zh":
+                keep.append((s, t, c))
+            else:
+                other[lang] = other.get(lang, 0) + 1
+        segments = [s for s, _, _ in keep]
+        translations = [t for _, t, _ in keep]
+        clip_paths = [c for _, _, c in keep]
+        if other:
+            breakdown = ", ".join(f"{k}={v}" for k, v in sorted(other.items()))
+            print(f"  language filter: dropped {before - len(segments)}/{before} non-Mandarin clips ({breakdown})")
+        if not segments:
+            print("Nothing survived the language filter. Skipping.")
+            return
+
+    # Stage 4d: English from the card's own Chinese. English subtitle lines
+    # split and reorder clauses differently from the burned-in Chinese, so the
+    # cue's English often translates a neighbouring Chinese line.
+    if not is_chinese_subs and not args.no_translate:
+        print(f"Translating {len(segments)} Chinese lines to English...")
+        translations = translate_segments(segments)
+
     # Stage 5: Output cards — resolve deck naming
     from autoanki.naming import parse_show_episode, build_deck_name
 
@@ -226,6 +256,11 @@ def main():
         "--i-plus-one",
         action="store_true",
         help="Only keep sentences with exactly one unknown morph (drops all-known and multi-unknown)",
+    )
+    parser.add_argument(
+        "--keep-non-mandarin",
+        action="store_true",
+        help="Skip the spoken-language check that drops clips whose audio isn't Mandarin",
     )
     parser.add_argument(
         "--keep-noise",
