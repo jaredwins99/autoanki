@@ -91,6 +91,7 @@ def generate_deck(
     deck_root: str = "AutoAnki",
     show: str | None = None,
     episode: str | None = None,
+    known: set[str] | None = None,
 ) -> Path:
     """Generate .apkg deck with embedded video clips.
 
@@ -109,7 +110,8 @@ def generate_deck(
     deck = genanki.Deck(_deck_id_from_title(deck_id_key), deck_name)
     media_files = []
     seen_texts: set[str] = set()
-    known = load_known_morphs()
+    if known is None:
+        known = load_known_morphs()
 
     for seg, translation, clip_path in zip(segments, translations, clip_paths):
         if not seg.text.strip():

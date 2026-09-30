@@ -149,6 +149,7 @@ def push_to_anki(
     deck_root: str = "AutoAnki",
     show: str | None = None,
     episode: str | None = None,
+    known: set[str] | None = None,
 ) -> int:
     """Create deck, ensure model, push notes. Returns count of notes added/updated.
 
@@ -166,9 +167,11 @@ def push_to_anki(
     _invoke("createDeck", deck=deck_name)
     _ensure_model()
 
-    known = load_known_morphs()
+    if known is None:
+        known = load_known_morphs()
     count = 0
     total = len(segments)
+    kept_ids: set[int] = set()
 
     for i, (seg, translation, clip_path) in enumerate(
         zip(segments, translations, clip_paths)
@@ -200,9 +203,10 @@ def push_to_anki(
                 "updateNoteFields",
                 note={"id": existing[0], "fields": fields},
             )
+            kept_ids.add(existing[0])
         else:
             # Add new note
-            _invoke(
+            new_id = _invoke(
                 "addNote",
                 note={
                     "deckName": deck_name,
@@ -211,8 +215,14 @@ def push_to_anki(
                     "options": {"allowDuplicate": False},
                 },
             )
+            kept_ids.add(new_id)
 
         count += 1
 
-    print(f"Done: {count} notes added/updated in '{deck_name}'.")
+    # The deck mirrors this run's output: notes from an earlier run that no
+    # longer pass the filters are removed.
+    stale = [n for n in _invoke("findNotes", query=f'"deck:{deck_name}"') if n not in kept_ids]
+    if stale:
+        _invoke("deleteNotes", notes=stale)
+    print(f"Done: {count} notes added/updated, {len(stale)} stale removed in '{deck_name}'.")
     return count

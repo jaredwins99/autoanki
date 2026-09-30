@@ -8,11 +8,22 @@ covers: autoanki/ocr_correct.py
 
 `correct_ocr()` batches OCR + English pairs into 150-line chunks, sends each
 as a Claude CLI call (`claude -p … --output-format json`), and expects back
-a JSON array of the same length. The prompt instructs Claude to lightly fix
-OCR when it's mostly right, but to translate the English directly to
-colloquial spoken Chinese when the OCR is empty, garbled, or contains only
-watermarks like `WX` or character-name labels. A length mismatch on return
-raises rather than silently truncates.
+a JSON array of the same length. The rules tell Claude to keep the OCR
+verbatim except to fix misread characters (traditional forms, look-alikes, a
+dropped first/last character), strip non-subtitle text (watermarks, name
+labels), or restore the order of two lines read out of order. It must never
+add, remove or swap words to match the English, which is a loose
+translation. Empty or garbage OCR is translated from the English instead. A
+length mismatch on return raises rather than silently truncates.
+
+Results are cached per episode in `work/correct_cache.json`, keyed by (OCR,
+English) and by a hash of the rules. Re-runs don't re-roll text that was
+already checked, and editing the rules invalidates the cache.
+
+The earlier rule, "lightly fix OCR when it's mostly right", let Claude
+rewrite correct OCR toward the English. On EP1, 3 of the 19 lines it changed
+became wrong against the frame: it added 比 (158) and 是 (364), and swapped
+不要了 for 不行了 (417).
 
 ## What was rejected, and why
 

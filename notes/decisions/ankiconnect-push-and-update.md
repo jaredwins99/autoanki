@@ -13,7 +13,10 @@ it already exists, adds any fields the current template needs, then calls
 `updateModelTemplates` and `updateModelStyling` so template edits reach cards
 that were pushed by earlier runs. Notes dedupe per-deck by the `Chinese`
 field: an existing note with the same Chinese text gets `updateNoteFields`,
-otherwise `addNote` with `allowDuplicate: False`.
+otherwise `addNote` with `allowDuplicate: False`. After the push, notes in
+the deck that this run didn't add or update are deleted, so the deck mirrors
+the latest run of its episode. Cards that an improved filter now rejects
+(names, transparent compounds) leave the deck rather than lingering.
 
 ## What was rejected, and why
 

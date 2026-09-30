@@ -21,6 +21,7 @@ autoanki/                      Python package (the pipeline)
 ├── morph.py                   known-morph loading, unknown detection, first-unknown highlight
 ├── pinyin.py                  tone-marked pinyin per word, as ruby, for the card back
 ├── audio_lang.py              spoken-language ID per clip (Whisper) to drop non-Mandarin audio
+├── vocab_judge.py             agent pass: unknown token → name / transparent / artifact / vocab
 ├── hsk.py                     inline HSK word list + generator for the baseline CSV
 ├── naming.py                  video title → (show, episode) → Anki deck name
 ├── cards.py                   .apkg writer (genanki)
@@ -56,6 +57,8 @@ clip.extract_clips ─────── clip_NNNN.mp4 per segment (±0.4s defau
 noise filter (post-OCR) ── filters.is_noise_post_ocr   watermarks, song/credit
  │                                                     markers, repeated static text
  ▼
+vocab judge (agent) ────── non-vocab unknowns (names, transparent combos, artifacts) → known
+ ▼
 i+1 filter (--i-plus-one)  keep sentences with exactly one unknown morph
  │                         known set = Profile if present, else baseline CSV
  ▼
@@ -83,6 +86,7 @@ autoanki setup [--mode M]        build ~/.config/autoanki/profile.yaml
 | `--i-plus-one` | off | keep only sentences with exactly one unknown morph |
 | `--keep-noise` | off | disable both noise filter passes |
 | `--keep-non-mandarin` | off | skip the spoken-language filter |
+| `--no-vocab-judge` | off | skip the agent pass on unknown tokens |
 | `--clip-padding` | `0.4` | seconds of buffer before/after each line |
 | `--deck-root` | `AutoAnki` | top-level deck |
 | `--show`, `--episode` | parsed from title | override deck naming |

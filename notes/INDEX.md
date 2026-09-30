@@ -26,6 +26,7 @@ declarations, so it cannot drift from the notes themselves.
 | decision | [Tone-marked pinyin per jieba word as ruby on the card back, never on the Reading front](decisions/pinyin-ruby-per-word.md) | autoanki/pinyin.py |
 | decision | [Parse VTT with webvtt-py; drop YouTube rolling repeats, merge consecutive identicals, gate on duration/language/junk/dedup](decisions/subtitles-vtt-parse-junk-dedup.md) | autoanki/subtitles.py |
 | decision | [Chinese → English translation runs through the Claude CLI as a batched subprocess, not an API SDK](decisions/translate-claude-subagent.md) | autoanki/translate.py |
+| decision | [A Claude pass classifies every unknown token as name / transparent / artifact / vocab before i+1; only vocab stays unknown](decisions/vocab-judge-agent.md) | autoanki/vocab_judge.py |
 | open | [Should `autoanki setup --gui` spin up a localhost web wizard alongside the TUI?](open/level-web-gui.md) | autoanki/level/setup_cli.py |
 | open | [Where does the adaptive quiz get its sentences from?](open/quiz-corpus.md) | autoanki/level/setup_cli.py |
 | open | [How does autoanki learn a user's actual vocabulary level?](open/vocab-level-source.md) | autoanki/morph.py |

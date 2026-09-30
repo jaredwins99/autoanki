@@ -86,7 +86,7 @@ def _process_one(url: str, args, work_dir: Path) -> None:
         if not args.no_ocr_correct and not args.no_ocr:
             from autoanki.ocr_correct import correct_ocr
             print(f"Correcting OCR with Claude ({len(chinese_texts)} segments)...")
-            chinese_texts = correct_ocr(chinese_texts, translations)
+            chinese_texts = correct_ocr(chinese_texts, translations, cache_path=work_dir / "correct_cache.json")
             print(f"  Corrected {len(chinese_texts)} segments")
 
         for seg, chinese in zip(segments, chinese_texts):
@@ -120,9 +120,31 @@ def _process_one(url: str, args, work_dir: Path) -> None:
             print("Nothing survived the noise filter. Skipping.")
             return
 
+    known = load_known_morphs()
+
+    # Stage 4a2: vocab judge — an agent classifies every unknown token as
+    # name / transparent combination / segmentation artifact / real vocab.
+    # Everything but real vocab counts as known from here on.
+    if not args.no_vocab_judge:
+        from autoanki.level.profile import Profile
+        from autoanki.vocab_judge import judge
+        examples: dict[str, str] = {}
+        for s in segments:
+            for tok in unknown_morphs(s.text, known):
+                examples.setdefault(tok, s.text)
+        profile = Profile.load()
+        profile_key = profile.updated_at.isoformat() if profile else "baseline-csv"
+        print(f"Judging {len(examples)} unknown tokens (names / combinations / artifacts / vocab)...")
+        verdicts = judge(examples, known, profile_key)
+        counts: dict[str, int] = {}
+        for tok, v in verdicts.items():
+            counts[v["c"]] = counts.get(v["c"], 0) + 1
+            if v["c"] != "vocab":
+                known.add(tok)
+        print("  " + ", ".join(f"{k}={v}" for k, v in sorted(counts.items())))
+
     # Stage 4b: i+1 filter — drop segments where every morph is already known.
     if args.i_plus_one:
-        known = load_known_morphs()
         before = len(segments)
         keep = [
             (s, t, c)
@@ -180,7 +202,7 @@ def _process_one(url: str, args, work_dir: Path) -> None:
         print(f"Pushing cards to Anki via AnkiConnect (deck: {deck_name})...")
         count = push_to_anki(
             dl.title, segments, translations, clip_paths,
-            deck_root=args.deck_root, show=show, episode=episode,
+            deck_root=args.deck_root, show=show, episode=episode, known=known,
         )
         print(f"  Pushed {count} cards to {deck_name}")
         print(f"\nDone! Cards are in Anki.")
@@ -189,7 +211,7 @@ def _process_one(url: str, args, work_dir: Path) -> None:
         print(f"Generating Anki deck (deck: {deck_name})...")
         result = generate_deck(
             dl.title, segments, translations, clip_paths, output_path,
-            deck_root=args.deck_root, show=show, episode=episode,
+            deck_root=args.deck_root, show=show, episode=episode, known=known,
         )
         print(f"  Deck saved to: {result}")
         print(f"\nDone! Import {result} into Anki.")
@@ -256,6 +278,11 @@ def main():
         "--i-plus-one",
         action="store_true",
         help="Only keep sentences with exactly one unknown morph (drops all-known and multi-unknown)",
+    )
+    parser.add_argument(
+        "--no-vocab-judge",
+        action="store_true",
+        help="Skip the agent pass that stops names, transparent combinations and segmentation artifacts from counting as new words",
     )
     parser.add_argument(
         "--keep-non-mandarin",

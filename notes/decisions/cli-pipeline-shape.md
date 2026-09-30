@@ -16,7 +16,7 @@ AnkiConnect are imported inside their branches, not at module top, so
 `--help` and `.apkg` runs don't pay the paddle load cost or require the
 paddle install.
 
-After the i+1 filter come a spoken-language filter (drop clips whose audio
+Before the i+1 filter, an agent pass (`vocab-judge-agent`) decides which unknown tokens are real vocabulary; names, transparent combinations and segmentation artifacts join the known set, which is passed to the deck writers so the highlight agrees with the filter. After the i+1 filter come a spoken-language filter (drop clips whose audio
 isn't Mandarin; see `audio-lang-whisper-filter`) and, on the OCR path, a
 Claude translation of each surviving card's Chinese. The English subtitle
 line is kept only as context for OCR correction: subtitle lines split and
